@@ -1,9 +1,9 @@
 from __future__ import annotations
 
-import re
 from typing import TYPE_CHECKING, Literal
 
 import discord
+import re2
 from discord import app_commands
 from discord.ext import commands
 
@@ -65,7 +65,7 @@ class StaffEvents(commands.Cog):
         # and local storage
         aliases_array = []
         if event_aliases:
-            aliases_array = re.findall(r"\w+", event_aliases)
+            aliases_array = re2.findall(r"\w+", event_aliases)
         new_dict = Event(name=event_name, aliases=aliases_array, emoji=None)
 
         # Add dict into events container
