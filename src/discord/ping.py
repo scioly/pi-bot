@@ -481,12 +481,12 @@ class PingManager(commands.GroupCog, name="ping"):
 
         # Attempt to remove a word ping with extra formatting
         elif f"\\b({word})\\b" in user["word_pings"]:
-            user["word_pings"].remove(f"\\e({word})\\b")
+            user["word_pings"].remove(f"\\b({word})\\b")
             await self.bot.mongo_database.update(
                 "data",
                 "pings",
                 user["_id"],
-                {"$pull": {"word_pings": f"\\e({word})\\b"}},
+                {"$pull": {"word_pings": f"\\b({word})\\b"}},
             )
             return await interaction.response.send_message(
                 f"I removed the `{word}` ping you were referencing.",
