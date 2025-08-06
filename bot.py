@@ -291,7 +291,7 @@ class PiBot(commands.Bot):
         )
         if message.content and len(legacy_command):
             if legacy_command[0] == sync.name or legacy_command[0].startswith(
-                f"{sync.name} "
+                f"{sync.name} ",
             ):
                 await bot.process_commands(message)
                 return
@@ -387,6 +387,7 @@ discord.utils.setup_logging(handler=handler)
     description="Syncs command list. Any new commands will be available for use.",
     help="The command has an optional second argument to state whether to sync all or only guild commands. Please specify it by either mentioning {}.",
 )
+@commands.cooldown(1, 60, commands.BucketType.guild)
 @commands.check(is_staff_from_ctx)
 async def sync(ctx: commands.Context, sync_type: Literal["all", "guild"] = "all"):
     """
@@ -421,6 +422,15 @@ async def sync(ctx: commands.Context, sync_type: Literal["all", "guild"] = "all"
 @sync.error
 async def sync_error(ctx: commands.Context, err: commands.CommandError):
     logging.error(err)
+    if isinstance(err, commands.CommandOnCooldown):
+        return await ctx.send(
+            "`{}{}` is on cooldown since the API endpoint for syncing commands to Discord is "
+            "ratelimited. Please try again in {:.2f} seconds.".format(
+                BOT_PREFIX,
+                sync.name,
+                err.retry_after,
+            ),
+        )
     if isinstance(err, commands.MissingAnyRole):
         return await ctx.send(str(err))
     if isinstance(err, commands.BadLiteralArgument):
