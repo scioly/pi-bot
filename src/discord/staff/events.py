@@ -4,7 +4,7 @@ import re
 from typing import TYPE_CHECKING, Literal
 
 import discord
-from discord import app_commands
+from discord import Role, app_commands
 from discord.ext import commands
 
 import commandchecks
@@ -20,6 +20,8 @@ from src.mongo.models import Event
 if TYPE_CHECKING:
     from bot import PiBot
 
+EVENT_ROLE_HEX_COLOR = 0x82A3D3
+
 
 class StaffEvents(commands.Cog):
     def __init__(self, bot: PiBot):
@@ -31,6 +33,42 @@ class StaffEvents(commands.Cog):
         guild_ids=env.slash_command_guilds,
         default_permissions=discord.Permissions(manage_roles=True),
     )
+
+    event_role_commands_group = app_commands.Group(
+        name="role",
+        description="Enables and disables certain event roles.",
+        guild_ids=env.slash_command_guilds,
+        default_permissions=discord.Permissions(manage_roles=True),
+        parent=event_commands_group,
+    )
+
+    def fetch_role(self, name: str) -> Role | None:
+        server = self.bot.get_guild(env.server_id)
+        potential_role = discord.utils.get(server.roles, name=name)
+
+        return potential_role
+
+    async def create_event_role(
+        self,
+        interaction: discord.Interaction,
+        event_name: str,
+    ) -> Role:
+        """
+        NOTE: this function does not check for existing names of roles.
+        """
+        reason_stmt = f"Created by using {interaction.user!s}"
+        if interaction.command:
+            reason_stmt += f" {interaction.command.name}"
+        reason_stmt += " with Pi-Bot."
+
+        # Create role on server
+        server = self.bot.get_guild(env.server_id)
+        assert isinstance(server, discord.Guild)
+        return await server.create_role(
+            name=event_name,
+            color=discord.Color(EVENT_ROLE_HEX_COLOR),
+            reason=reason_stmt,
+        )
 
     @event_commands_group.command(
         name="add",
@@ -61,6 +99,11 @@ class StaffEvents(commands.Cog):
                 content=f"The `{event_name}` event has already been added.",
             )
 
+        if self.fetch_role(event_name):
+            return await interaction.edit_original_response(
+                content="A role with the name `{}` already exists. The event cannot be added until "
+                "that role has been manually deleted.".format(event_name),
+            )
         # Construct dictionary to represent event; will be stored in database
         # and local storage
         aliases_array = []
@@ -68,22 +111,84 @@ class StaffEvents(commands.Cog):
             aliases_array = re.findall(r"\w+", event_aliases)
         new_dict = Event(name=event_name, aliases=aliases_array, emoji=None)
 
-        # Add dict into events container
-        await new_dict.insert()
-        src.discord.globals.EVENT_INFO.append(new_dict)
+        new_role = await self.create_event_role(interaction, event_name)
 
-        # Create role on server
-        server = self.bot.get_guild(env.server_id)
-        assert isinstance(server, discord.Guild)
-        await server.create_role(
-            name=event_name,
-            color=discord.Color(0x82A3D3),
-            reason=f"Created by {interaction.user!s} using /eventadd with Pi-Bot.",
-        )
+        try:
+            # Add dict into events container
+            await new_dict.insert()
+            src.discord.globals.EVENT_INFO.append(new_dict)
+        except Exception as e:
+            # If db fails, cleanup role
+            await new_role.delete()
+            raise e
 
         # Notify user of process completion
         await interaction.edit_original_response(
             content=f"The `{event_name}` event was added.",
+        )
+
+    @event_role_commands_group.command(
+        name="enable",
+        description="Adds an event's role.",
+    )
+    @app_commands.checks.has_any_role(ROLE_STAFF, ROLE_VIP)
+    @app_commands.describe(
+        event_name="The name of the event.",
+    )
+    async def event_enable_role(
+        self,
+        interaction: discord.Interaction,
+        event_name: str,
+    ):
+        # This check exists to make sure that the name is an actual event, otherwise other roles
+        # that are non-events can't be added.
+        if event_name not in [e.name for e in src.discord.globals.EVENT_INFO]:
+            return await interaction.response.send_message(
+                f"`{event_name}` is not an event!",
+            )
+
+        if self.fetch_role(event_name):
+            return await interaction.response.send_message(
+                f"Role for `{event_name}` has already been added.",
+            )
+
+        await self.create_event_role(interaction, event_name)
+
+        return await interaction.response.send_message(
+            f"Role for `{event_name}` has been added.",
+        )
+
+    @event_role_commands_group.command(
+        name="disable",
+        description="Removes an event's role.",
+    )
+    @app_commands.checks.has_any_role(ROLE_STAFF, ROLE_VIP)
+    @app_commands.describe(
+        event_name="The name of the event.",
+    )
+    async def event_disable_role(
+        self,
+        interaction: discord.Interaction,
+        event_name: str,
+    ):
+        # This check exists to make sure that the name is an actual event, otherwise other roles
+        # that are non-events can be deleted.
+        if event_name not in [e.name for e in src.discord.globals.EVENT_INFO]:
+            return await interaction.response.send_message(
+                f"`{event_name}` is not an event!",
+            )
+
+        potential_role = self.fetch_role(event_name)
+
+        if not potential_role:
+            return await interaction.response.send_message(
+                f"Role for `{event_name}` has already been deleted.",
+            )
+
+        potential_role.is_bot_managed
+        await potential_role.delete()
+        return await interaction.response.send_message(
+            f"Role for `{event_name}` has been deleted.",
         )
 
     @event_commands_group.command(
