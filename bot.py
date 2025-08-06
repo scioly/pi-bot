@@ -287,7 +287,9 @@ class PiBot(commands.Bot):
 
         legacy_command: list[str] = re.findall(r"^[!\?]\s*(\w+)", message.content)
         if message.content and len(legacy_command):
-            if legacy_command[0].startswith(sync.name):
+            if legacy_command[0] == sync.name or legacy_command[0].startswith(
+                f"{sync.name} "
+            ):
                 await bot.process_commands(message)
                 return
             botspam_channel = discord.utils.get(
