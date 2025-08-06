@@ -209,6 +209,11 @@ class StaffEvents(commands.Cog):
         # Check for staff permissions
         commandchecks.is_staff_from_ctx(interaction)
 
+        return await interaction.response.send_message(
+            "This command has been temporarily disabled as it gets reworked. If you want to remove"
+            f"the event role, please use `/{self.event_disable_role.qualified_name}`.",
+        )
+
         # Send user notice that process has begun
         await interaction.response.send_message(
             f"{EMOJI_LOADING} Attempting to remove the `{event_name}` event...",
