@@ -13,7 +13,7 @@ import re
 import subprocess
 import traceback
 import uuid
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, Literal
 
 import aiohttp
 import discord
@@ -384,12 +384,17 @@ discord.utils.setup_logging(handler=handler)
     description="Syncs command list. Any new commands will be available for use.",
 )
 @commands.check(is_staff_from_ctx)
-async def sync(ctx: commands.Context, only_guild_commands: bool = False):
+async def sync(ctx: commands.Context, sync_type: Literal["all", "guild"] = "all"):
     """
     Syncs and registers and new commands with Discord. This command is a
     top-level command to prevent disabled cogs from disabling sync
     functionality.
     """
+    match sync_type:
+        case "all":
+            only_guild_commands = False
+        case "guild":
+            only_guild_commands = True
     async with ctx.typing(ephemeral=True):
         global_cmds_synced, guild_cmds_synced = await bot.sync_commands(
             only_guild_commands,
