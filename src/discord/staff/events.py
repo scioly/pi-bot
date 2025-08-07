@@ -4,7 +4,7 @@ import re
 from typing import TYPE_CHECKING, Literal
 
 import discord
-from discord import Role, app_commands
+from discord import DiscordException, Role, app_commands
 from discord.ext import commands
 
 import commandchecks
@@ -22,6 +22,8 @@ if TYPE_CHECKING:
 
 EVENT_ROLE_HEX_COLOR = 0x82A3D3
 
+EnableDisable = Literal["enable", "disable"]
+
 
 class StaffEvents(commands.Cog):
     def __init__(self, bot: PiBot):
@@ -34,9 +36,9 @@ class StaffEvents(commands.Cog):
         default_permissions=discord.Permissions(manage_roles=True),
     )
 
-    event_role_commands_group = app_commands.Group(
-        name="role",
-        description="Enables and disables certain event roles.",
+    event_batch_commands_group = app_commands.Group(
+        name="batch",
+        description="Updates the bot's list of events.",
         guild_ids=env.slash_command_guilds,
         default_permissions=discord.Permissions(manage_roles=True),
         parent=event_commands_group,
@@ -127,69 +129,87 @@ class StaffEvents(commands.Cog):
             content=f"The `{event_name}` event was added.",
         )
 
-    @event_role_commands_group.command(
-        name="enable",
-        description="Adds an event's role.",
-    )
-    @app_commands.checks.has_any_role(ROLE_STAFF, ROLE_VIP)
-    @app_commands.describe(
-        event_name="The name of the event.",
-    )
-    async def event_enable_role(
+    async def enable_role(
         self,
         interaction: discord.Interaction,
         event_name: str,
-    ):
+    ) -> str:
         # This check exists to make sure that the name is an actual event, otherwise other roles
         # that are non-events can't be added.
         if event_name not in [e.name for e in src.discord.globals.EVENT_INFO]:
-            return await interaction.response.send_message(
-                f"`{event_name}` is not an event!",
-            )
+            return f"`{event_name}` is not an event!"
 
         if self.fetch_role(event_name):
-            return await interaction.response.send_message(
-                f"Role for `{event_name}` has already been added.",
-            )
+            return f"Role for `{event_name}` has already been added."
 
         await self.create_event_role(interaction, event_name)
 
-        return await interaction.response.send_message(
-            f"Role for `{event_name}` has been added.",
-        )
+        return f"Role for `{event_name}` has been added."
 
-    @event_role_commands_group.command(
-        name="disable",
-        description="Removes an event's role.",
-    )
-    @app_commands.checks.has_any_role(ROLE_STAFF, ROLE_VIP)
-    @app_commands.describe(
-        event_name="The name of the event.",
-    )
-    async def event_disable_role(
-        self,
-        interaction: discord.Interaction,
-        event_name: str,
-    ):
+    async def disable_role(self, event_name: str) -> str:
         # This check exists to make sure that the name is an actual event, otherwise other roles
-        # that are non-events can be deleted.
+        # that are non-events can't be added.
         if event_name not in [e.name for e in src.discord.globals.EVENT_INFO]:
-            return await interaction.response.send_message(
-                f"`{event_name}` is not an event!",
-            )
+            return f"`{event_name}` is not an event!"
 
         potential_role = self.fetch_role(event_name)
 
         if not potential_role:
-            return await interaction.response.send_message(
-                f"Role for `{event_name}` has already been deleted.",
-            )
+            return f"Role for `{event_name}` has already been deleted."
 
         potential_role.is_bot_managed
         await potential_role.delete()
-        return await interaction.response.send_message(
-            f"Role for `{event_name}` has been deleted.",
-        )
+        return f"Role for `{event_name}` has been deleted."
+
+    @event_commands_group.command(
+        name="role",
+        description="Add or remove an event's role.",
+    )
+    @app_commands.checks.has_any_role(ROLE_STAFF, ROLE_VIP)
+    @app_commands.describe(
+        event_name="The name of the event.",
+    )
+    async def event_role(
+        self,
+        interaction: discord.Interaction,
+        mode: EnableDisable,
+        event_name: str,
+    ):
+        if mode == "enable":
+            status = await self.enable_role(interaction, event_name)
+            return await interaction.response.send_message(status)
+        else:
+            status = await self.disable_role(event_name)
+            return await interaction.response.send_message(status)
+
+    @event_batch_commands_group.command(
+        name="role",
+        description="Add or remove multiple events' role.",
+    )
+    @app_commands.checks.has_any_role(ROLE_STAFF, ROLE_VIP)
+    @app_commands.describe(
+        event_names_csv_list="A comma separated list of all event roles to add.",
+    )
+    async def event_batch_role(
+        self,
+        interaction: discord.Interaction,
+        mode: EnableDisable,
+        event_names_csv_list: str,
+    ):
+        event_name_list = event_names_csv_list.split(",")
+
+        responses = []
+        for event_name in event_name_list:
+            try:
+                if mode == "enable":
+                    status_str = await self.enable_role(interaction, event_name)
+                else:
+                    status_str = await self.disable_role(event_name)
+            except DiscordException as e:
+                status_str = str(e)
+            responses.append(status_str)
+
+        await interaction.response.send_message("\n".join(responses))
 
     @event_commands_group.command(
         name="remove",
@@ -211,7 +231,7 @@ class StaffEvents(commands.Cog):
 
         return await interaction.response.send_message(
             "This command has been temporarily disabled as it gets reworked. If you want to remove"
-            f"the event role, please use `/{self.event_disable_role.qualified_name}`.",
+            f"the event role, please use `/{self.event_role.qualified_name} disable`.",
         )
 
         # Send user notice that process has begun
