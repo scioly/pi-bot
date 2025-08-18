@@ -201,6 +201,7 @@ class PiBot(commands.Bot):
             "src.discord.staff.censor",
             "src.discord.staff.tags",
             "src.discord.staff.events",
+            "src.discord.staff.usercleanup",
             "src.discord.embed",
             "src.discord.membercommands",
             "src.discord.devtools",
