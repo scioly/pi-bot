@@ -8,6 +8,7 @@ from src.mongo.models import Censor, Event, Invitational, Ping, Tag
 ##############
 # CONSTANTS
 ##############
+DISCORD_DEFAULT_INVITE_ENDING = "scioly"
 DISCORD_INVITE_ENDINGS = [
     "9Z5zKtV",
     "C9PGV6h",
@@ -16,7 +17,7 @@ DISCORD_INVITE_ENDINGS = [
     "gh3aXbq",
     "skGQXd4",
     "RnkqUbK",
-    "scioly",
+    DISCORD_DEFAULT_INVITE_ENDING,
 ]
 
 # Roles
