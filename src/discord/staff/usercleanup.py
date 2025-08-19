@@ -13,6 +13,7 @@ from env import env
 from src.discord.globals import (
     DISCORD_DEFAULT_INVITE_ENDING,
     EMOJI_LOADING,
+    ROLE_MR,
     ROLE_STAFF,
     ROLE_VIP,
 )
@@ -23,7 +24,7 @@ class UnconfirmedCleanupCancel(ui.View):
         self,
         interaction: discord.Interaction,
         initiator: discord.User | discord.Member,
-        unconfirmed_role: Role,
+        member_role: Role,
         total_member_count: int,
         members: Sequence[Member],
     ):
@@ -34,7 +35,7 @@ class UnconfirmedCleanupCancel(ui.View):
             self.task_handler(
                 interaction,
                 self.cancel_flag,
-                unconfirmed_role,
+                member_role,
                 total_member_count,
                 members,
             ),
@@ -71,7 +72,7 @@ class UnconfirmedCleanupCancel(ui.View):
         self,
         interaction: discord.Interaction[discord.Client],
         cancel_event: asyncio.Event,
-        unconfirmed_role: Role,
+        member_role: Role,
         total_member_count: int,
         members: Sequence[Member],
     ):
@@ -117,7 +118,7 @@ class UnconfirmedCleanupCancel(ui.View):
                 if cancel_event.is_set():
                     extra_processed = i
                     break
-                if unconfirmed_role in member.roles:
+                if member_role not in member.roles:
                     try:
                         await member.kick(
                             reason="Server cleanup. Please rejoin the server if available (discord.gg/{})".format(
@@ -148,18 +149,9 @@ class UnconfirmedCleanupCancel(ui.View):
             [
                 1
                 async for member in interaction.guild.fetch_members(limit=None)
-                if unconfirmed_role in member.roles
+                if member_role not in member.roles
             ],
         )
-
-        role_deletion_err = None
-        if users_with_unconfirmed_role == 0:
-            try:
-                await unconfirmed_role.delete(
-                    reason="Deleted via `/cleanup unconfirmed`: No longer needed",
-                )
-            except (Forbidden, HTTPException) as e:
-                role_deletion_err = e
 
         progress_message = "Completed"
         if cancel_event.is_set():
@@ -167,17 +159,12 @@ class UnconfirmedCleanupCancel(ui.View):
         for failed_member in members_failed:
             progress_message += f"\n{failed_member.mention}"
         if users_with_unconfirmed_role > 0:
-            progress_message += "\nThere exist {} user(s) that still have the {} role. Role was not be deleted.".format(
-                users_with_unconfirmed_role,
-                unconfirmed_role.name,
-            )
-        else:
-            if role_deletion_err:
-                progress_message += "\nRole deletion encountered an error: {}".format(
-                    role_deletion_err,
+            progress_message += (
+                "\nThere exist {} user(s) that does not have the {} role".format(
+                    users_with_unconfirmed_role,
+                    member_role.name,
                 )
-            else:
-                progress_message += "\nRole was deleted successfully"
+            )
 
         return await interaction.edit_original_response(
             content=progress_message,
@@ -207,21 +194,18 @@ class UserCleanup(commands.Cog):
         if not interaction.guild:
             raise Exception("Command should be invoked within a server")
 
-        role_name = "Unconfirmed (old)"
-        unconfirmed_role = discord.utils.get(interaction.guild.roles, name=role_name)
+        member_role = discord.utils.get(interaction.guild.roles, name=ROLE_MR)
 
-        if not unconfirmed_role:
+        if not member_role:
             raise Exception(
-                "Command has already removed `{}`, implying this command has already been run. No operation was performed on this command.".format(
-                    role_name,
-                ),
+                f"Could not find role `{ROLE_MR}`. Please make sure it exists and the bot has adequate permissions.",
             )
 
         await interaction.response.send_message(
             view=UnconfirmedCleanupCancel(
                 interaction,
                 interaction.user,
-                unconfirmed_role,
+                member_role,
                 total_member_count=interaction.guild.member_count
                 or len(interaction.guild.members),
                 members=interaction.guild.members,
