@@ -116,6 +116,7 @@ RULES = [
 DISCORD_AUTOCOMPLETE_MAX_ENTRIES = 25
 # The maximum number of options that can be passed into a discord.ui.Select
 DISCORD_SELECT_MAX_OPTIONS = 20
+DISCORD_LONG_TERM_RATE_LIMIT = 1  # 5 requests / 5 seconds, so might as well keep 1 request / 1 second for long running tasks
 
 ##############
 # VARIABLES

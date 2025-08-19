@@ -12,6 +12,7 @@ from bot import PiBot
 from env import env
 from src.discord.globals import (
     DISCORD_DEFAULT_INVITE_ENDING,
+    DISCORD_LONG_TERM_RATE_LIMIT,
     EMOJI_LOADING,
     ROLE_MR,
     ROLE_STAFF,
@@ -117,7 +118,7 @@ class UnconfirmedCleanupCancel(ui.View):
                             allowed_mentions=AllowedMentions.none(),
                         ),
                     )
-                await asyncio.sleep(1)
+                await asyncio.sleep(DISCORD_LONG_TERM_RATE_LIMIT)
 
             if final_message:
                 await final_message
