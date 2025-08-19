@@ -108,6 +108,12 @@ class PiBotCommandTree(app_commands.CommandTree):
                     error.original,
                     interaction.command,
                 )
+            else:
+                logger.warning(
+                    "Reporter cog was not of type `Reporter`. Was instead: {}".format(
+                        type(reporter_cog),
+                    ),
+                )
 
         elif isinstance(error, app_commands.TransformerError):
             message = "This command experienced a transformer error."
