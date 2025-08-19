@@ -20,6 +20,14 @@ from src.discord.globals import (
 
 
 class UnconfirmedCleanupCancel(ui.View):
+    """
+    A View for showing progress on cleaning up unconfirmed users.
+
+    Includes a cancellation button to cancel operation early. Note that this
+    entire operation is not atomic and any users that were kicked prior to
+    cancellation will not be reverted.
+    """
+
     def __init__(
         self,
         interaction: discord.Interaction,
@@ -76,6 +84,11 @@ class UnconfirmedCleanupCancel(ui.View):
         total_member_count: int,
         members: Sequence[Member],
     ):
+        """
+        In charge of processing all users to kick. Passes message rendering to another async task.
+
+        Can be cancelled via button action. If cancelled, the coroutine is gracefully terminated.
+        """
         if not interaction.command:
             raise Exception("Handler was not invoked via command")
         if not interaction.guild:
@@ -189,6 +202,14 @@ class UserCleanup(commands.Cog):
     )
     @app_commands.checks.has_any_role(ROLE_STAFF, ROLE_VIP)
     async def remove_unconfirmed_users(self, interaction: discord.Interaction):
+        """
+        Kicks any users that do not have the Member role in the current server
+        the command was invoked.
+
+        Includes a cancellation button to cancel operation early. Note that this
+        entire operation is not atomic and any users that were kicked prior to
+        cancellation will not be reverted.
+        """
         if not interaction.command:
             raise Exception("Handler was not invoked via command")
         if not interaction.guild:
