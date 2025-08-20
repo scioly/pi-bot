@@ -25,9 +25,14 @@ class Cron(Document):
         use_cache = False
 
 
+class PhrasePing(BaseModel):
+    phrase: str
+    is_re2: bool
+
+
 class Ping(Document):
     user_id: Annotated[int, Indexed()]
-    word_pings: list[str]
+    pings: list[PhrasePing]
     dnd: bool
 
     class Settings:
