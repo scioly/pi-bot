@@ -1183,12 +1183,15 @@ class MemberCommands(commands.Cog):
         param_list = [p for p in param_list if p is not None]
         event_names = [e.name for e in src.discord.globals.EVENT_INFO]
 
-        selected_roles = [
-            discord.utils.get(member.guild.roles, name=e)
-            for e in param_list
-            if e in event_names
-        ]
-        could_not_handle = [p for p in param_list if p not in event_names]
+        selected_roles = []
+        could_not_handle = []
+        for e in param_list:
+            if e in event_names:
+                role = discord.utils.get(member.guild.roles, name=e)
+                if role:
+                    selected_roles.append(role)
+                    continue
+            could_not_handle.append(e)
 
         for role in selected_roles:
             if role in member.roles:
