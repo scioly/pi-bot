@@ -18,7 +18,6 @@ from src.discord.globals import (
     CATEGORY_STAFF,
     CHANNEL_SUPPORT,
     DISCORD_INVITE_ENDINGS,
-    ROLE_UC,
 )
 
 if TYPE_CHECKING:
@@ -241,11 +240,6 @@ class Censor(commands.Cog):
 
     @commands.Cog.listener()
     async def on_member_join(self, member: discord.Member):
-        # Give new user confirmed role
-        unconfirmed_role = discord.utils.get(member.guild.roles, name=ROLE_UC)
-        assert isinstance(unconfirmed_role, discord.Role)
-        await member.add_roles(unconfirmed_role)
-
         # Check to see if user's name is innapropriate
         name = member.name
         if await self.censor_needed(name):

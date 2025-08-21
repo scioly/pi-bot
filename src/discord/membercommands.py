@@ -24,6 +24,7 @@ from src.discord.globals import (
     CHANNEL_INVITATIONALS,
     CHANNEL_UNSELFMUTE,
     DISCORD_AUTOCOMPLETE_MAX_ENTRIES,
+    DISCORD_DEFAULT_INVITE_ENDING,
     ROLE_ALUMNI,
     ROLE_DIV_A,
     ROLE_DIV_B,
@@ -701,7 +702,9 @@ class MemberCommands(commands.Cog):
         Args:
             interaction (discord.Interaction): The interaction sent by Discord.
         """
-        await interaction.response.send_message("https://discord.gg/C9PGV6h")
+        await interaction.response.send_message(
+            f"https://discord.gg/{DISCORD_DEFAULT_INVITE_ENDING}",
+        )
 
     @app_commands.command(
         description="Returns a link to the Scioly.org forums.",
