@@ -1251,6 +1251,7 @@ class MemberCommands(commands.Cog):
             app_commands.Choice(name=e.name, value=e.name)
             for e in src.discord.globals.EVENT_INFO
             if current.lower() in e.name.lower()
+            and discord.utils.get(interaction.guild.roles, name=e.name) is not None
         ][:DISCORD_AUTOCOMPLETE_MAX_ENTRIES]
 
     @app_commands.command(description="Gets a tag.")
