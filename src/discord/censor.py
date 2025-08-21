@@ -2,15 +2,16 @@
 Contains all functionality related to censoring users' actions in the Scioly.org Discord
 server.
 """
+
 from __future__ import annotations
 
 import asyncio
 import contextlib
 import logging
-import re
 from typing import TYPE_CHECKING
 
 import discord
+import re2
 from discord.ext import commands
 
 import src.discord.globals
@@ -93,10 +94,12 @@ class Censor(commands.Cog):
     def word_present(self, content: str) -> bool:
         with contextlib.suppress(asyncio.CancelledError):
             for word in src.discord.globals.CENSOR.words:
-                if re.findall(rf"\b({word})\b", content, re.I):
+                flags = re2.Options()
+                flags.case_sensitive = False
+                if re2.findall(rf"\b({word})\b", content, flags):
                     return True
             for emoji in src.discord.globals.CENSOR.emojis:
-                if len(re.findall(emoji, content)):
+                if len(re2.findall(emoji, content)):
                     return True
         return False
 
@@ -119,11 +122,13 @@ class Censor(commands.Cog):
         Determines whether the Discord invite link censor is needed. In other
         words, whether this content contains a Discord invite link.
         """
+        flags = re2.Options()
+        flags.case_sensitive = False
         if not any(
             ending for ending in DISCORD_INVITE_ENDINGS if ending in content
         ) and (
-            len(re.findall("discord.gg", content, re.I)) > 0
-            or len(re.findall("discord.com/invite", content, re.I)) > 0
+            len(re2.findall("discord.gg", content, flags)) > 0
+            or len(re2.findall("discord.com/invite", content, flags)) > 0
         ):
             return True
         return False
@@ -141,15 +146,17 @@ class Censor(commands.Cog):
         author = message.author.nick or message.author.name
 
         # Actually replace content found on the censored words/emojis list
+        flags = re2.Options()
+        flags.case_sensitive = False
         for word in src.discord.globals.CENSOR.words:
-            content = re.sub(
+            content = re2.sub(
                 rf"\b({word})\b",
                 "<censored>",
                 content,
-                flags=re.IGNORECASE,
+                options=flags,
             )
         for emoji in src.discord.globals.CENSOR.emojis:
-            content = re.sub(emoji, "<censored>", content, flags=re.I)
+            content = re2.sub(emoji, "<censored>", content, options=flags)
 
         reply = (
             (message.reference.resolved or message.reference.cached_message)

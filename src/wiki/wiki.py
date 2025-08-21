@@ -1,8 +1,8 @@
 import asyncio
 import logging
-import re
 
 import pywikibot
+import re2
 import wikitextparser as wtp
 from aioify import aioify
 
@@ -84,7 +84,7 @@ async def implement_command(action, page_title):
         pt = wtp.parse(rf"{text}").plain_text()
         title = await page.title()
         link = site.base_url(site.article_path + title.replace(" ", "_"))
-        return re.split(r"(?<!\w\.\w.)(?<![A-Z][a-z]\.)(?<=\.|\?)\s", pt)[:1] + [
+        return re2.split(r"(?<!\w\.\w.)(?<![A-Z][a-z]\.)(?<=\.|\?)\s", pt)[:1] + [
             "\n\nRead more on the Scioly.org Wiki here: <" + link + ">!",
         ]
 

@@ -7,10 +7,10 @@ from __future__ import annotations
 import asyncio
 import contextlib
 import json
-import re
 from typing import TYPE_CHECKING, Any
 
 import discord
+import re2
 import webcolors
 from discord import app_commands
 from discord.ext import commands
@@ -480,7 +480,7 @@ class EmbedButton(discord.ui.Button["EmbedView"]):
         # If the user is attempting to update the color of the embed, but doesn't
         # pass a color, deny them
         if self.update_value == "color" and not (
-            re.findall(r"#[0-9a-f]{6}", response_message.content.lower())
+            re2.findall(r"#[0-9a-f]{6}", response_message.content.lower())
         ):
             help_message = await self.embed_view.channel.send(
                 "The color you provide must be a hex code. For example, `#abbb02` "

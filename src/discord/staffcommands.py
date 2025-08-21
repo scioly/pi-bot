@@ -4,11 +4,11 @@ import asyncio
 import contextlib
 import datetime
 import logging
-import re
 from typing import TYPE_CHECKING, Literal
 
 import discord
 import matplotlib.pyplot as plt
+import re2
 from beanie.odm.operators.update.general import Set
 from discord import app_commands
 from discord.ext import commands
@@ -306,8 +306,8 @@ class CronSelect(discord.ui.Select):
 
     async def callback(self, interaction: discord.Interaction):
         value = self.values[0]
-        num = re.findall(r"\(#(\d*)", value)
-        value = re.sub(r" \(#\d*\)", "", value)
+        num = re2.findall(r"\(#(\d*)", value)
+        value = re2.sub(r" \(#\d*\)", "", value)
         relevant_doc = [
             d for d in self.docs if f"{d.cron_type.title()} {d.tag}" == value
         ]

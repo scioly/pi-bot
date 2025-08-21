@@ -6,10 +6,10 @@ from __future__ import annotations
 
 import datetime
 import random
-import re
 from typing import TYPE_CHECKING, Literal
 
 import discord
+import re2
 import wikipedia as wikip
 from aioify import aioify
 from discord import app_commands
@@ -164,10 +164,12 @@ class MemberCommands(commands.Cog):
             text = text.decode("utf-8")
 
         description = ""
-        total_posts_matches = re.search(
+        flags = re2.Options()
+        flags.one_line = False
+        total_posts_matches = re2.search(
             r"(?:<dt>Total posts:<\/dt>\s+<dd>)(\d+)",
             text,
-            re.MULTILINE,
+            flags,
         )
         if total_posts_matches is None:
             return await interaction.response.send_message(
@@ -176,13 +178,13 @@ class MemberCommands(commands.Cog):
         else:
             description += f"**Total Posts:** `{total_posts_matches.group(1)} posts`\n"
 
-        has_thanked_matches = re.search(r"Has thanked: <a.*?>(\d+)", text, re.MULTILINE)
+        has_thanked_matches = re2.search(r"Has thanked: <a.*?>(\d+)", text, flags)
         description += f"**Has Thanked:** `{has_thanked_matches.group(1)} times`\n"
 
-        been_thanked_matches = re.search(
+        been_thanked_matches = re2.search(
             r"Been(?:&nbsp;)?thanked: <a.*?>(\d+)",
             text,
-            re.MULTILINE,
+            flags,
         )
         description += f"**Been Thanked:** `{been_thanked_matches.group(1)} times`\n"
 
@@ -192,7 +194,7 @@ class MemberCommands(commands.Cog):
         ]
         for pattern in date_regexes:
             try:
-                matches = re.search(pattern["regex"], text, re.MULTILINE)
+                matches = re2.search(pattern["regex"], text, flags)
                 raw_dt_string = matches.group(1)
                 raw_dt_string = raw_dt_string.replace("st", "")
                 raw_dt_string = raw_dt_string.replace("nd", "")
@@ -211,18 +213,18 @@ class MemberCommands(commands.Cog):
                 pass
 
         for i in range(1, 7):
-            stars_matches = re.search(
+            stars_matches = re2.search(
                 rf"<img src=\"./images/ranks/stars{i}\.gif\"",
                 text,
-                re.MULTILINE,
+                flags,
             )
             if stars_matches is not None:
                 description += f"\n**Stars:** {i * ':star:'}"
                 break
-            exalts_matches = re.search(
+            exalts_matches = re2.search(
                 rf"<img src=\"./images/ranks/exalt{i}\.gif\"",
                 text,
-                re.MULTILINE,
+                flags,
             )
             if exalts_matches is not None:
                 description += (
@@ -237,10 +239,10 @@ class MemberCommands(commands.Cog):
             description=description,
         )
 
-        avatar_matches = re.search(
+        avatar_matches = re2.search(
             r"<img class=\"avatar\" src=\"(.*?)\"",
             text,
-            re.MULTILINE,
+            flags,
         )
         if avatar_matches is not None:
             profile_embed.set_thumbnail(
@@ -804,7 +806,7 @@ class MemberCommands(commands.Cog):
             interaction (discord.Interaction): The interaction sent by Discord.
             rule (str): The rule to print.
         """
-        num = re.findall(r"Rule #(\d+)", rule)
+        num = re2.findall(r"Rule #(\d+)", rule)
         num = int(num[0])
         rule = RULES[int(num) - 1]
         return await interaction.response.send_message(f"**Rule {num}:**\n> {rule}")

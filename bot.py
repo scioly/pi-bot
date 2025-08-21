@@ -9,7 +9,6 @@ import asyncio
 import datetime
 import logging
 import logging.handlers
-import re
 import subprocess
 import traceback
 import uuid
@@ -17,6 +16,7 @@ from typing import TYPE_CHECKING, Any, Literal
 
 import aiohttp
 import discord
+import re2
 from beanie import init_beanie
 from discord import app_commands
 from discord.ext import commands
@@ -285,8 +285,8 @@ class PiBot(commands.Bot):
             spam: commands.Cog | SpamManager = self.get_cog("SpamManager")
             await spam.store_and_validate(message)
 
-        legacy_command: list[str] = re.findall(
-            rf"^{re.escape(BOT_PREFIX)}\s*(\w+)",
+        legacy_command: list[str] = re2.findall(
+            rf"^{re2.escape(BOT_PREFIX)}\s*(\w+)",
             message.content,
         )
         if message.content and len(legacy_command):
