@@ -4,7 +4,13 @@ import re
 from typing import TYPE_CHECKING, Literal
 
 import discord
-from discord import DiscordException, Role, app_commands
+from discord import (
+    DiscordException,
+    Forbidden,
+    HTTPException,
+    Role,
+    app_commands,
+)
 from discord.ext import commands
 
 import commandchecks
@@ -80,12 +86,14 @@ class StaffEvents(commands.Cog):
     @app_commands.describe(
         event_name="The name of the new event.",
         event_aliases="The aliases for the new event. Format as 'alias1, alias2'.",
+        should_enable_role="Whether event role should be enabled immediately. Default is True.",
     )
     async def event_add(
         self,
         interaction: discord.Interaction,
         event_name: str,
         event_aliases: str | None = None,
+        should_enable_role: bool = True,
     ):
         # Check for staff permissions
         commandchecks.is_staff_from_ctx(interaction)
@@ -113,20 +121,24 @@ class StaffEvents(commands.Cog):
             aliases_array = re.findall(r"\w+", event_aliases)
         new_dict = Event(name=event_name, aliases=aliases_array, emoji=None)
 
-        new_role = await self.create_event_role(interaction, event_name)
+        # Add dict into events container
+        await new_dict.insert()
+        src.discord.globals.EVENT_INFO.append(new_dict)
 
-        try:
-            # Add dict into events container
-            await new_dict.insert()
-            src.discord.globals.EVENT_INFO.append(new_dict)
-        except Exception as e:
-            # If db fails, cleanup role
-            await new_role.delete()
-            raise e
+        if should_enable_role:
+            try:
+                await self.create_event_role(interaction, event_name)
+            except (HTTPException, Forbidden) as e:
+                return await interaction.followup.send(
+                    content=f"The `{event_name}` event was added. However, role creation failed: {e.text}",
+                )
+            return await interaction.followup.send(
+                content=f"The `{event_name}` event was added, and role was created.",
+            )
 
         # Notify user of process completion
         await interaction.followup.send(
-            content=f"The `{event_name}` event was added.",
+            content=f"The `{event_name}` event was added. The event role can be enabled with `/{self.event_role.qualified_name} enable`.",
         )
 
     async def enable_role(
