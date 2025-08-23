@@ -32,6 +32,7 @@ class _Env(BaseSettings, extra="ignore"):
     emoji_guilds: list[int]
     pi_bot_wiki_username: str | None = None
     pi_bot_wiki_password: str | None = None
+    version_commit: str | None = None
     mongo_url: str = Field(min_length=1)
 
     @model_validator(mode="after")
