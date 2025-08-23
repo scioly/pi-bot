@@ -5,8 +5,10 @@ from typing import TYPE_CHECKING, Literal
 
 import discord
 from discord import (
+    CategoryChannel,
     DiscordException,
     Forbidden,
+    ForumChannel,
     HTTPException,
     Role,
     app_commands,
@@ -200,6 +202,25 @@ class StaffEvents(commands.Cog):
             status = await self.disable_role(event_name)
             return await interaction.followup.send(status)
 
+    async def batch_process_roles(
+        self,
+        interaction: discord.Interaction,
+        mode: EnableDisable,
+        event_name_list: list[str],
+    ):
+        responses = []
+        for event_name in event_name_list:
+            try:
+                if mode == "enable":
+                    status_str = await self.enable_role(interaction, event_name)
+                else:
+                    status_str = await self.disable_role(event_name)
+            except DiscordException as e:
+                status_str = str(e)
+            responses.append(status_str)
+
+        await interaction.response.send_message("\n".join(responses))
+
     @event_batch_commands_group.command(
         name="role",
         description="Add or remove multiple events' role.",
@@ -216,18 +237,15 @@ class StaffEvents(commands.Cog):
     ):
         event_name_list = event_names_csv_list.split(",")
 
-        responses = []
-        for event_name in event_name_list:
-            try:
-                if mode == "enable":
-                    status_str = await self.enable_role(interaction, event_name)
-                else:
-                    status_str = await self.disable_role(event_name)
-            except DiscordException as e:
-                status_str = str(e)
-            responses.append(status_str)
+        if interaction.channel and not isinstance(
+            interaction.channel,
+            ForumChannel | CategoryChannel,
+        ):
+            async with interaction.channel.typing():
+                await self.batch_process_roles(interaction, mode, event_name_list)
+            return
 
-        await interaction.response.send_message("\n".join(responses))
+        await self.batch_process_roles(interaction, mode, event_name_list)
 
     @event_commands_group.command(
         name="remove",
