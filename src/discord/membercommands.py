@@ -20,11 +20,9 @@ from commandchecks import is_in_bot_spam, is_staff_from_ctx
 from env import env
 from src.discord.globals import (
     CATEGORY_STAFF,
-    CHANNEL_GAMES,
     CHANNEL_INVITATIONALS,
     CHANNEL_UNSELFMUTE,
     DISCORD_AUTOCOMPLETE_MAX_ENTRIES,
-    ROLE_GAMES,
     ROLE_LH,
     ROLE_MR,
     ROLE_SELFMUTE,
@@ -230,47 +228,6 @@ class MemberCommands(commands.Cog):
         await interaction.response.send_message(
             content=f"Currently, there are `{len(guild.members)}` members in the server.",
         )
-
-    @app_commands.command(description="Toggles the visibility of the #games channel.")
-    @app_commands.guilds(*env.slash_command_guilds)
-    @app_commands.checks.cooldown(
-        2,
-        120,
-        key=lambda i: (i.guild_id, i.user.id),
-    )  # Allow people to toggle choice, but discourage them from toggling multiple times
-    @app_commands.check(is_in_bot_spam)
-    async def games(self, interaction: discord.Interaction):
-        """
-        Removes or adds someone to the games channel.
-
-        Permissions:
-            Confirmed Members: Unconfirmed members cannot access this command.
-
-        Args:
-            interaction (discord.Interaction): The interaction sent by Discord.
-        """
-        games_channel = discord.utils.get(
-            interaction.user.guild.text_channels,
-            name=CHANNEL_GAMES,
-        )
-        member = interaction.user
-        role = discord.utils.get(member.guild.roles, name=ROLE_GAMES)
-
-        # Type checking
-        assert isinstance(games_channel, discord.TextChannel)
-
-        if role in member.roles:
-            await member.remove_roles(role)
-            await interaction.response.send_message(
-                content="Removed you from the games club... feel free to come back anytime!",
-            )
-            await games_channel.send(f"{member.mention} left the party.")
-        else:
-            await member.add_roles(role)
-            await interaction.response.send_message(
-                content=f"You are now in the channel. Come and have fun in {games_channel.mention}! :tada:",
-            )
-            await games_channel.send(f"Please welcome {member.mention} to the party!!")
 
     @app_commands.command(
         description="Toggles the visibility of state roles and channels.",
