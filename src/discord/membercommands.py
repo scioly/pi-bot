@@ -24,10 +24,6 @@ from src.discord.globals import (
     CHANNEL_INVITATIONALS,
     CHANNEL_UNSELFMUTE,
     DISCORD_AUTOCOMPLETE_MAX_ENTRIES,
-    ROLE_ALUMNI,
-    ROLE_DIV_A,
-    ROLE_DIV_B,
-    ROLE_DIV_C,
     ROLE_GAMES,
     ROLE_LH,
     ROLE_MR,
@@ -234,84 +230,6 @@ class MemberCommands(commands.Cog):
         await interaction.response.send_message(
             content=f"Currently, there are `{len(guild.members)}` members in the server.",
         )
-
-    @app_commands.command(description="Toggles the Alumni role.")
-    @app_commands.guilds(*env.slash_command_guilds)
-    @app_commands.checks.cooldown(5, 60, key=lambda i: (i.guild_id, i.user.id))
-    @app_commands.check(is_in_bot_spam)
-    async def alumni(self, interaction: discord.Interaction):
-        """
-        Removes or adds the alumni role from a user.
-
-        Permissions:
-            None: All users have access to this command.
-
-        Args:
-            interaction (discord.Interaction): The interaction sent by Discord.
-        """
-        await self._assign_div(interaction, "Alumni")
-        await interaction.response.send_message(
-            content="Assigned you the Alumni role, and removed all other division/alumni roles.",
-        )
-
-    @app_commands.command(description="Toggles division roles for the user.")
-    @app_commands.describe(div="The division to assign the user with.")
-    @app_commands.guilds(*env.slash_command_guilds)
-    @app_commands.checks.cooldown(5, 60, key=lambda i: (i.guild_id, i.user.id))
-    @app_commands.check(is_in_bot_spam)
-    async def division(
-        self,
-        interaction: discord.Interaction,
-        div: Literal["Division A", "Division B", "Division C", "Alumni", "None"],
-    ):
-        """
-        Gives the user a specific division role, including the Alumni role.
-
-        Permissions:
-            None: All users have access to this command.
-
-        Args:
-            interaction (discord.Interaction): The interaction sent by Discord.
-        """
-        if div != "None":
-            await self._assign_div(interaction, div)
-            await interaction.response.send_message(
-                content=f"Assigned you the {div} role, and removed all other division/alumni roles.",
-            )
-        else:
-            member = interaction.user
-            div_a_role = discord.utils.get(member.guild.roles, name=ROLE_DIV_A)
-            div_b_role = discord.utils.get(member.guild.roles, name=ROLE_DIV_B)
-            div_c_role = discord.utils.get(member.guild.roles, name=ROLE_DIV_C)
-            alumni_role = discord.utils.get(member.guild.roles, name=ROLE_ALUMNI)
-            await member.remove_roles(div_a_role, div_b_role, div_c_role, alumni_role)
-            await interaction.response.send_message(
-                content="Removed all of your division/alumni roles.",
-            )
-
-    async def _assign_div(
-        self,
-        interaction: discord.Interaction,
-        div: Literal["Division A", "Division B", "Division C", "Alumni"],
-    ) -> discord.Role:
-        """
-        Internal command which assigns a user a div role. Called by /division
-        and /alumni.
-
-        Args:
-            interaction (discord.Interaction): The Discord interaction sent by one
-                of the commands.
-            div (str): The division chosen by the user.
-        """
-        member = interaction.user
-        role = discord.utils.get(member.guild.roles, name=div)
-        div_a_role = discord.utils.get(member.guild.roles, name=ROLE_DIV_A)
-        div_b_role = discord.utils.get(member.guild.roles, name=ROLE_DIV_B)
-        div_c_role = discord.utils.get(member.guild.roles, name=ROLE_DIV_C)
-        alumni_role = discord.utils.get(member.guild.roles, name=ROLE_ALUMNI)
-        await member.remove_roles(div_a_role, div_b_role, div_c_role, alumni_role)
-        await member.add_roles(role)
-        return role
 
     @app_commands.command(description="Toggles the visibility of the #games channel.")
     @app_commands.guilds(*env.slash_command_guilds)
