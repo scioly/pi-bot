@@ -94,39 +94,6 @@ class MemberCommands(commands.Cog):
 
         return await interaction.response.send_message(embed=help_embed)
 
-    @app_commands.command(description="Toggles your pronoun roles.")
-    @app_commands.describe(pronouns="The pronoun to add/remove from your account.")
-    @app_commands.guilds(*env.slash_command_guilds)
-    @app_commands.checks.cooldown(2, 20, key=lambda i: (i.guild_id, i.user.id))
-    @app_commands.check(is_in_bot_spam)
-    async def pronouns(
-        self,
-        interaction: discord.Interaction,
-        pronouns: Literal["He / Him / His", "She / Her / Hers", "They / Them / Theirs"],
-    ):
-        """
-        Discord command allowing members to change their pronouns.
-
-        Permissions:
-            None: Accessible by all members.
-
-        Args:
-            interaction (discord.Interaction): The interaction sent from Discord.
-            pronouns (str): The pronoun set chosen by a member.
-        """
-        member = interaction.user
-        pronoun_role = discord.utils.get(member.guild.roles, name=pronouns)
-        if pronoun_role in member.roles:
-            await member.remove_roles(pronoun_role)
-            await interaction.response.send_message(
-                content=f"Removed your `{pronouns}` role.",
-            )
-        else:
-            await member.add_roles(pronoun_role)
-            await interaction.response.send_message(
-                content=f"Added the `{pronouns}` role to your profile.",
-            )
-
     @app_commands.command(description="Gets the profile information for a username.")
     @app_commands.describe(
         username="The username to get information about. Defaults to your nickname/username.",
