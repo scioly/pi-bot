@@ -22,14 +22,12 @@ from src.discord.globals import (
     CATEGORY_STAFF,
     CHANNEL_INVITATIONALS,
     CHANNEL_UNSELFMUTE,
-    DISCORD_AUTOCOMPLETE_MAX_ENTRIES,
     ROLE_LH,
     ROLE_MR,
     ROLE_SELFMUTE,
     RULES,
 )
 from src.discord.views import YesNo
-from src.lists import get_state_list
 from src.mongo.models import Cron
 from src.wiki.wiki import implement_command
 
@@ -228,139 +226,6 @@ class MemberCommands(commands.Cog):
         await interaction.response.send_message(
             content=f"Currently, there are `{len(guild.members)}` members in the server.",
         )
-
-    @app_commands.command(
-        description="Toggles the visibility of state roles and channels.",
-    )
-    @app_commands.describe(
-        state="The first state to add/remove from your profile.",
-        state_two="The second state to add/remove from your profile.",
-        state_three="The third state to add/remove from your profile.",
-        state_four="The fourth state to add/remove from your profile.",
-        state_five="The fifth state to add/remove from your profile.",
-        state_six="The sixth state to add/remove from your profile.",
-        state_seven="The seventh state to add/remove from your profile.",
-        state_eight="The eighth state to add/remove from your profile.",
-        state_nine="The ninth state to add/remove from your profile.",
-        state_ten="The tenth state to add/remove from your profile.",
-    )
-    @app_commands.guilds(*env.slash_command_guilds)
-    @app_commands.checks.cooldown(5, 60, key=lambda i: (i.guild_id, i.user.id))
-    @app_commands.check(is_in_bot_spam)
-    async def states(
-        self,
-        interaction: discord.Interaction,
-        state: str,
-        state_two: str | None = None,
-        state_three: str | None = None,
-        state_four: str | None = None,
-        state_five: str | None = None,
-        state_six: str | None = None,
-        state_seven: str | None = None,
-        state_eight: str | None = None,
-        state_nine: str | None = None,
-        state_ten: str | None = None,
-    ):
-        """
-        Assigns someone with specific state roles.
-
-        Permissions:
-            None: All members can access this command.
-
-        Args:
-            interaction (discord.Interaction): The interaction sent by Discord.
-            state_XXX (str): The name of the XXXth state to add/remove from the user.
-        """
-        member = interaction.user
-        param_list = [
-            state,
-            state_two,
-            state_three,
-            state_four,
-            state_five,
-            state_six,
-            state_seven,
-            state_eight,
-            state_nine,
-            state_ten,
-        ]
-        param_list = [
-            p for p in param_list if p is not None
-        ]  # No need to try to add/print None later
-
-        states_without_abbrev: list[str] = [
-            s[: s.rfind(" (")] for s in get_state_list()
-        ]
-        selected_state_roles = [
-            discord.utils.get(member.guild.roles, name=s)
-            for s in param_list
-            if s in states_without_abbrev
-        ]
-
-        removed_roles = []
-        added_roles = []
-        could_not_handle = [s for s in param_list if s not in states_without_abbrev]
-
-        for role in selected_state_roles:
-            if role in member.roles:
-                await member.remove_roles(role)
-                removed_roles.append(role.name)
-            else:
-                await member.add_roles(role)
-                added_roles.append(role.name)
-
-        # Construct a response only containing the needed pieces
-        response_components = []
-        response_components.append(
-            "Added states " + " ".join([f"`{arg}`" for arg in added_roles]),
-        ) if added_roles else None
-        response_components.append(
-            "removed states " + " ".join([f"`{arg}`" for arg in removed_roles]),
-        ) if removed_roles else None
-        response_components.append(
-            "could not handle " + " ".join([f"`{arg}`" for arg in could_not_handle]),
-        ) if could_not_handle else None
-
-        # Assemble into message
-        state_res = ", and ".join(response_components)
-
-        # Capitalize and add a period!
-        state_res = state_res.replace(state_res[0], state_res[0].upper(), 1)
-        state_res += "."
-        await interaction.response.send_message(state_res)
-
-    @states.autocomplete("state")
-    @states.autocomplete("state_two")
-    @states.autocomplete("state_three")
-    @states.autocomplete("state_four")
-    @states.autocomplete("state_five")
-    @states.autocomplete("state_six")
-    @states.autocomplete("state_seven")
-    @states.autocomplete("state_eight")
-    @states.autocomplete("state_nine")
-    @states.autocomplete("state_ten")
-    async def states_autocomplete(
-        self,
-        interaction: discord.Interaction,
-        current: str,
-    ) -> list[app_commands.Choice[str]]:
-        """
-        Provides autocompletion for the states method/command.
-
-        Args:
-            interaction (discord.Interaction): The autocomplete interaction.
-            current (str): The current phrase typed by the user.
-
-        Returns:
-            List[app_commands.Choice[str]]: A list of string choices to choose from.
-        """
-        states: list[str] = [s[: s.rfind(" (")] for s in get_state_list()]
-
-        return [
-            app_commands.Choice(name=state, value=state)
-            for state in states
-            if current.lower() in state.lower()
-        ][:DISCORD_AUTOCOMPLETE_MAX_ENTRIES]
 
     @app_commands.command(description="Mutes yourself.")
     @app_commands.describe(mute_length="How long to mute yourself for.")
