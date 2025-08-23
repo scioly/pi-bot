@@ -160,6 +160,9 @@ class PiBot(commands.Bot):
         )
 
     def get_commit(self) -> str | None:
+        if env.version_commit or not env.dev_mode:
+            return env.version_commit
+
         with subprocess.Popen(
             ["git", "rev-parse", "--short", "HEAD"],
             stdout=subprocess.PIPE,
