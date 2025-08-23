@@ -102,7 +102,7 @@ class StaffEvents(commands.Cog):
             )
 
         if self.fetch_role(event_name):
-            return await interaction.edit_original_response(
+            return await interaction.followup.send(
                 content="A role with the name `{}` already exists. The event cannot be added until "
                 "that role has been manually deleted.".format(event_name),
             )
@@ -125,7 +125,7 @@ class StaffEvents(commands.Cog):
             raise e
 
         # Notify user of process completion
-        await interaction.edit_original_response(
+        await interaction.followup.send(
             content=f"The `{event_name}` event was added.",
         )
 
@@ -176,11 +176,17 @@ class StaffEvents(commands.Cog):
         event_name: str,
     ):
         if mode == "enable":
+            await interaction.response.send_message(
+                f"{EMOJI_LOADING} Attempting to enable role for `{event_name}` ...",
+            )
             status = await self.enable_role(interaction, event_name)
-            return await interaction.response.send_message(status)
+            return await interaction.followup.send(status)
         else:
+            await interaction.response.send_message(
+                f"{EMOJI_LOADING} Attempting to disable role for `{event_name}` ...",
+            )
             status = await self.disable_role(event_name)
-            return await interaction.response.send_message(status)
+            return await interaction.followup.send(status)
 
     @event_batch_commands_group.command(
         name="role",
