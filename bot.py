@@ -462,5 +462,13 @@ if __name__ == "__main__":
     if env.dev_mode:
         logger.addHandler(RichHandler(level=logging.DEBUG, rich_tracebacks=True))
     else:
-        logger.addHandler(RichHandler(level=logging.INFO, rich_tracebacks=False))
+        logger.level = logging.INFO
+        streamHandler = logging.StreamHandler()
+        streamHandler.setFormatter(
+            logging.Formatter(
+                "%(asctime)s [%(levelname)s] %(message)s",
+                "%Y-%m-%d %H:%M:%S",
+            ),
+        )
+        logger.addHandler(streamHandler)
     asyncio.run(main(env.discord_token))
