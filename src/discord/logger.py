@@ -19,7 +19,6 @@ from src.discord.globals import (
     CHANNEL_EDITEDM,
     CHANNEL_LEAVE,
     CHANNEL_LOUNGE,
-    CHANNEL_WELCOME,
     ROLE_UC,
 )
 
@@ -144,18 +143,6 @@ class Logger(commands.Cog):
         embed.add_field(name="Joined At", value=joined_at)
         embed.add_field(name="Unconfirmed", value=unconfirmed_statement)
         await leave_channel.send(embed=embed)
-
-        # Delete any messages the user left in the welcoming channel
-        welcome_channel = discord.utils.get(
-            member.guild.text_channels,
-            name=CHANNEL_WELCOME,
-        )
-        assert isinstance(welcome_channel, discord.TextChannel)
-        async for message in welcome_channel.history():
-            if not message.pinned and (
-                member in message.mentions or member == message.author
-            ):
-                await message.delete()
 
     @commands.Cog.listener()
     async def on_raw_message_edit(self, payload: discord.RawMessageUpdateEvent):

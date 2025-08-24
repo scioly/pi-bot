@@ -21,7 +21,6 @@ from src.discord.globals import (
     CATEGORY_INVITATIONALS,
     CATEGORY_SO,
     CATEGORY_STATES,
-    CHANNEL_WELCOME,
     DISCORD_SELECT_MAX_OPTIONS,
     EMOJI_LOADING,
     INVITATIONAL_INFO,
@@ -36,7 +35,6 @@ from src.discord.globals import (
     ROLE_QUARANTINE,
     ROLE_SELFMUTE,
     ROLE_STAFF,
-    ROLE_UC,
     ROLE_VIP,
     ROLE_WM,
 )
@@ -342,104 +340,6 @@ class StaffEssential(StaffCommands):
             callback=self.confirm_user,
         )
         self.bot.tree.add_command(self.confirm_ctx_menu)
-
-    async def _confirm_core(
-        self,
-        interaction: discord.Interaction,
-        channel: discord.TextChannel,
-        member: discord.Member,
-    ) -> bool:
-        """
-        Core method responsible for confirming users. Called by /confirm and the
-        'Confirm User' user command.
-
-        Args:
-            interaction (discord.ApplicationContext): The context relevant to confirming
-              the user.
-            channel (discord.TextChannel): The #welcome channel.
-            member (discord.Member): The member to confirm.
-
-        Returns:
-            bool: Whether the member was successfully confirmed.
-        """
-        if member.bot:
-            await interaction.edit_original_response(
-                content=":x: You can't confirm a bot!",
-            )
-            return False
-
-        role1 = discord.utils.get(member.guild.roles, name=ROLE_UC)
-        role2 = discord.utils.get(member.guild.roles, name=ROLE_MR)
-
-        if role2 in member.roles:
-            await interaction.edit_original_response(
-                content=":x: This user is already confirmed.",
-            )
-            return False
-
-        await member.remove_roles(role1)
-        await member.add_roles(role2)
-        await channel.purge(
-            check=lambda m: (
-                (m.author.bot and not m.embeds and not m.pinned)
-                or (m.author == member and not m.embeds)
-                or (member in m.mentions)
-            ),
-        )  # Assuming first message is pinned (usually is in several cases)
-        return True
-
-    @app_commands.command(
-        description="Staff command. Confirms a user, giving them access to the server.",
-    )
-    @app_commands.checks.has_any_role(ROLE_STAFF, ROLE_VIP)
-    @app_commands.default_permissions(manage_roles=True)
-    @app_commands.guilds(*env.slash_command_guilds)
-    @app_commands.describe(member="The member to confirm.")
-    async def confirm(self, interaction: discord.Interaction, member: discord.Member):
-        """Allows a staff member to confirm a user."""
-        channel = interaction.channel
-        if channel.name != CHANNEL_WELCOME:
-            return await interaction.response.send_message(
-                "Sorry! Please confirm the member in the welcoming channel!",
-                ephemeral=True,
-            )
-
-        # Confirm member
-        await interaction.response.send_message(
-            f"{EMOJI_LOADING} Switching roles and cleaning up messages...",
-        )
-        assert isinstance(channel, discord.TextChannel)
-        response = await self._confirm_core(interaction, channel, member)
-
-        # Sends confirmation message
-        if response:
-            await interaction.edit_original_response(
-                content=f":white_check_mark: Alrighty, confirmed {member.mention}. They now have access to see other "
-                f"channels and send messages in them. :tada: ",
-            )
-
-    @app_commands.checks.has_any_role(ROLE_STAFF, ROLE_VIP)
-    @app_commands.default_permissions(manage_roles=True)
-    @app_commands.guilds(*env.slash_command_guilds)
-    async def confirm_user(
-        self,
-        interaction: discord.Interaction,
-        member: discord.Member,
-    ):
-        # Confirm member
-        channel = discord.utils.get(member.guild.text_channels, name=CHANNEL_WELCOME)
-        await interaction.response.send_message(
-            f"{EMOJI_LOADING} Switching roles and cleaning up messages...",
-            ephemeral=True,
-        )
-        response = await self._confirm_core(interaction, channel, member)
-
-        # Send confirmation message
-        if response:
-            await interaction.edit_original_response(
-                content=f":white_check_mark: Alrighty, confirmed {member.mention}. They now have access to see other "
-                f"channels and send messages in them. :tada: ",
-            )
 
     @app_commands.command(
         description="Staff command. Nukes a certain amount of messages.",
