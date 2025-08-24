@@ -460,6 +460,7 @@ async def main(token: str):
 if __name__ == "__main__":
     logger = logging.getLogger()
     if env.dev_mode:
+        logger.level = logging.DEBUG
         logger.addHandler(RichHandler(level=logging.DEBUG, rich_tracebacks=True))
     else:
         logger.level = logging.INFO
