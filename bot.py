@@ -169,7 +169,8 @@ class PiBot(commands.Bot):
         ) as proc:
             if proc.stdout:
                 hash = proc.stdout.read()
-                return hash.decode("utf-8")
+                commit = hash.decode("utf-8")
+                return commit.strip("\n")
         return None
 
     async def setup_hook(self) -> None:
