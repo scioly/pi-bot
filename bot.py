@@ -151,8 +151,10 @@ class PiBot(commands.Bot):
             str,
             dict[str, Any],
         ] = {}  # name differentiation between internal _listeners attribute
-        self.__version__ = "v5.1.0"
+        self.__version__ = "2025.09"
         self.__commit__ = self.get_commit()
+        if self.__commit__:
+            self.__version__ += f"-{self.__commit__}"
         self.session = None
         self.mongo_client = AsyncIOMotorClient(
             env.mongo_url,
