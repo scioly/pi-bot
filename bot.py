@@ -209,6 +209,7 @@ class PiBot(commands.Bot):
             "src.discord.spam",
             "src.discord.reporter",
             "src.discord.logger",
+            "src.discord.rolerestore",
         )
         for i, extension in enumerate(extensions):
             try:
