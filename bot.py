@@ -310,9 +310,6 @@ class PiBot(commands.Bot):
             await reply_message.delete(delay=10)
 
     async def start(self, token: str, *, reconnect: bool = True) -> None:
-        if self.__commit__ is None:
-            # Logging is set up at this point so we can now prompt a warning message for a missing commit hash
-            logging.warning("Version commit could not be found")
         self.session = aiohttp.ClientSession()
         await super().start(token=token, reconnect=reconnect)
 
