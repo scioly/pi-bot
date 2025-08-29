@@ -1,7 +1,7 @@
 FROM python:3.10
 
-ARG version_commit
-ENV VERSION_COMMIT=${version_commit}
+ARG version
+ENV VERSION=${version}
 
 # Set working directory
 WORKDIR /usr/src/app

@@ -151,20 +151,20 @@ class PiBot(commands.Bot):
             str,
             dict[str, Any],
         ] = {}  # name differentiation between internal _listeners attribute
-        self.__version__ = "2025.09"
-        self.__commit__ = self.get_commit()
-        if self.__commit__:
-            self.__version__ += f"-{self.__commit__}"
+        self.__version__ = self.get_version()
+        if not self.__version__:
+            self.__version__ = f"dev-{self.get_commit() or 'unknown'}"
         self.session = None
         self.mongo_client = AsyncIOMotorClient(
             env.mongo_url,
             tz_aware=True,
         )
 
-    def get_commit(self) -> str | None:
-        if env.version_commit or not env.dev_mode:
-            return env.version_commit
+    def get_version(self) -> str | None:
+        if env.version or not env.dev_mode:
+            return env.version
 
+    def get_commit(self) -> str | None:
         with subprocess.Popen(
             ["git", "rev-parse", "--short", "HEAD"],
             stdout=subprocess.PIPE,

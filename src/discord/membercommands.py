@@ -378,7 +378,7 @@ class MemberCommands(commands.Cog):
         avatar_url = self.bot.user.display_avatar.url
 
         embed = discord.Embed(
-            title=f"**Pi-Bot {self.bot.__version__}{'-dev' if env.dev_mode else ''}**",
+            title=f"**Pi-Bot {self.bot.__version__}**",
             color=discord.Color(0xF86D5F),
             description="""
             Hey there! I'm Pi-Bot, and I help to manage the Scioly.org forums, wiki, and chat. You'll often see me around this Discord server to help users get roles and information about Science Olympiad.
