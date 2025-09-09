@@ -783,8 +783,8 @@ class StaffEssential(StaffCommands):
                     selected_time,
                     reason=generate_audit_reason_message(interaction, reason),
                 )
-            except Exception:
-                pass
+            except Exception as e:
+                logger.warning(e)
 
         # Test
         if not member.timed_out_until or member.timed_out_until != selected_time:
