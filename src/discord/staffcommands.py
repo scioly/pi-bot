@@ -459,7 +459,9 @@ class StaffEssential(StaffCommands):
                         "Notice from the Scioly.org server:",
                         embed=alert_embed,
                     )
-                await member.kick(reason=reason)
+                await member.kick(
+                    reason=generate_audit_reason_message(interaction, reason),
+                )
             except Exception:
                 pass
 
@@ -646,7 +648,7 @@ class StaffEssential(StaffCommands):
                 # Ban member
                 await interaction.guild.ban(
                     member,
-                    reason=reason,
+                    reason=generate_audit_reason_message(interaction, reason),
                     delete_message_days=delete_days,
                 )
             except Exception:
