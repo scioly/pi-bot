@@ -686,7 +686,7 @@ class StaffEssential(StaffCommands):
         self,
         interaction: discord.Interaction,
         member: discord.Member,
-        reason: str,
+        reason: str | None,
         mute_length: Literal[
             "10 minutes",
             "30 minutes",
