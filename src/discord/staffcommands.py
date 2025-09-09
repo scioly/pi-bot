@@ -491,8 +491,7 @@ class StaffEssential(StaffCommands):
         # Check caller is staff
         commandchecks.is_staff_from_ctx(interaction)
 
-        role = discord.utils.get(member.guild.roles, name=ROLE_MUTED)
-        if role not in member.roles:
+        if not member.timed_out_until:
             return await interaction.response.send_message(
                 "The user can't be unmuted because they aren't currently muted.",
             )
@@ -523,12 +522,12 @@ class StaffEssential(StaffCommands):
         # Handle response
         if view.value:
             try:
-                await member.remove_roles(role)
+                await member.timeout(None)
             except Exception:
                 logger.exception("Unable to remove the Muted role from a given user.")
 
         # Test user was unmuted
-        if role not in member.roles:
+        if not member.timed_out_until:
             await interaction.edit_original_response(
                 content="The user was successfully unmuted.",
                 embed=None,
@@ -730,7 +729,6 @@ class StaffEssential(StaffCommands):
         )
 
         await view.wait()
-        role = discord.utils.get(member.guild.roles, name=ROLE_MUTED)
         if view.value:
             try:
                 if quiet == "no":
@@ -747,16 +745,12 @@ class StaffEssential(StaffCommands):
                         "Notice from the Scioly.org server:",
                         embed=alert_embed,
                     )
-                await member.add_roles(role)
+                await member.timeout(selected_time, reason=reason)
             except Exception:
                 pass
 
-        if mute_length != "Indefinitely":
-            cron_tasks_cog: commands.Cog | CronTasks = self.bot.get_cog("CronTasks")
-            await cron_tasks_cog.schedule_unmute(member, selected_time)
-
         # Test
-        if role in member.roles:
+        if member.timed_out_until:
             # User was successfully muted
             await interaction.edit_original_response(
                 content="The user was successfully muted.",
