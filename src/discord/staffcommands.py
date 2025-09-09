@@ -485,8 +485,16 @@ class StaffEssential(StaffCommands):
     @app_commands.checks.has_any_role(ROLE_STAFF, ROLE_VIP)
     @app_commands.default_permissions(manage_roles=True)
     @app_commands.guilds(*env.slash_command_guilds)
-    @app_commands.describe(member="The user to unmute.")
-    async def unmute(self, interaction: discord.Interaction, member: discord.Member):
+    @app_commands.describe(
+        member="The user to unmute.",
+        reason="The reason to unmute the user.",
+    )
+    async def unmute(
+        self,
+        interaction: discord.Interaction,
+        member: discord.Member,
+        reason: str | None,
+    ):
         """Unmutes a user."""
         # Check caller is staff
         commandchecks.is_staff_from_ctx(interaction)
@@ -522,7 +530,10 @@ class StaffEssential(StaffCommands):
         # Handle response
         if view.value:
             try:
-                await member.timeout(None)
+                await member.timeout(
+                    None,
+                    reason=generate_audit_reason_message(interaction, reason),
+                )
             except Exception:
                 logger.exception("Unable to remove the Muted role from a given user.")
 
