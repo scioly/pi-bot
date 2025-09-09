@@ -335,11 +335,6 @@ class StaffEssential(StaffCommands):
         self.__cog_app_commands__.append(
             SlowMode(bot),
         )  # Manually add the slowmode group to this cog
-        self.confirm_ctx_menu = app_commands.ContextMenu(
-            name="Confirm User",
-            callback=self.confirm_user,
-        )
-        self.bot.tree.add_command(self.confirm_ctx_menu)
 
     @app_commands.command(
         description="Staff command. Nukes a certain amount of messages.",
