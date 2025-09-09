@@ -126,7 +126,7 @@ class SpamManager(commands.Cog):
         """
         unmute_time = discord.utils.utcnow() + datetime.timedelta(hours=1)
 
-        await member.timeout(unmute_time, reason="Automatic")
+        await member.timeout(unmute_time, reason="Automatic - spam")
 
     async def store_and_validate(self, message: discord.Message) -> None:
         """
