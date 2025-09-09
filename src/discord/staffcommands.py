@@ -745,7 +745,10 @@ class StaffEssential(StaffCommands):
                         "Notice from the Scioly.org server:",
                         embed=alert_embed,
                     )
-                await member.timeout(selected_time, reason=reason)
+                await member.timeout(
+                    selected_time,
+                    reason=generate_audit_reason_message(interaction, reason),
+                )
             except Exception:
                 pass
 
@@ -1375,6 +1378,16 @@ class StaffNonessential(StaffCommands, name="StaffNonesntl"):
         # Reset bot status to regularly update
         cron_cog: commands.Cog | CronTasks = self.bot.get_cog("CronTasks")
         cron_cog.change_bot_status.restart()
+
+
+def generate_audit_reason_message(
+    interaction: discord.Interaction,
+    reason: str | None,
+) -> str:
+    full_reason = f"On behalf of `{interaction.user.name}` ({interaction.user.mention})"
+    if reason:
+        full_reason += f" - {reason}"
+    return full_reason
 
 
 async def setup(bot: PiBot):
