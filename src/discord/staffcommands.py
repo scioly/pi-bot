@@ -684,7 +684,7 @@ class StaffEssential(StaffCommands):
     )
     async def mute(
         self,
-        interaction,
+        interaction: discord.Interaction,
         member: discord.Member,
         reason: str,
         mute_length: Literal[
