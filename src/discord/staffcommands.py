@@ -679,7 +679,8 @@ class StaffEssential(StaffCommands):
     @app_commands.describe(
         member="The user to mute.",
         reason="The reason to mute the user.",
-        mute_length="How long to mute the user for.",
+        mute_length="How long to mute the user for. Mutally exclusive to `until`.",
+        until="Unix timestamp (in seconds) representing how long to leave user muted until. Mutally exclusive to `mute_length`.",
         quiet="Does not DM the user upon mute. Defaults to no.",
     )
     async def mute(
@@ -687,19 +688,23 @@ class StaffEssential(StaffCommands):
         interaction: discord.Interaction,
         member: discord.Member,
         reason: str | None,
-        mute_length: Literal[
-            "10 minutes",
-            "30 minutes",
-            "1 hour",
-            "2 hours",
-            "8 hours",
-            "1 day",
-            "4 days",
-            "7 days",
-            "1 month",
-            "1 year",
-            "Indefinitely",
-        ],
+        mute_length: (
+            Literal[
+                "10 minutes",
+                "30 minutes",
+                "1 hour",
+                "2 hours",
+                "8 hours",
+                "1 day",
+                "4 days",
+                "7 days",
+                "1 month",
+                "1 year",
+                "Indefinitely",
+            ]
+            | None
+        ),
+        until: int | None,
         quiet: Literal["yes", "no"] = "no",
     ):
         """
@@ -707,10 +712,26 @@ class StaffEssential(StaffCommands):
         """
         commandchecks.is_staff_from_ctx(interaction)
 
-        selected_time = self.time_str_to_datetime(mute_length)
-        if mute_length == "Indefinitely":
-            time_statement = "The user will never be automatically unmuted."
-        else:
+        if mute_length is None and until is None:
+            raise Exception(
+                "Both `mute_length` and `until` were not set. Please provide a value for one of these arguments.",
+            )
+        if mute_length is not None and until is not None:
+            raise Exception(
+                "Both `mute_length` and `until` were set. Please only set one.",
+            )
+
+        if mute_length:
+            selected_time = self.time_str_to_datetime(mute_length)
+            if mute_length == "Indefinitely":
+                time_statement = "The user will never be automatically unmuted."
+            else:
+                time_statement = f"The user will be muted until {discord.utils.format_dt(selected_time)}."
+        if until:
+            selected_time = datetime.datetime.fromtimestamp(
+                until,
+                tz=datetime.timezone.utc,
+            )
             time_statement = f"The user will be muted until {discord.utils.format_dt(selected_time)}."
 
         original_shown_embed = discord.Embed(
