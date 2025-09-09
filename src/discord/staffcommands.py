@@ -787,13 +787,24 @@ class StaffEssential(StaffCommands):
                 pass
 
         # Test
-        if member.timed_out_until:
-            # User was successfully muted
+        if not member.timed_out_until or member.timed_out_until != selected_time:
+            timeout_str = (
+                f"timeout that ends {discord.utils.format_dt(member.timed_out_until)} ({discord.utils.format_dt(member.timed_out_until, style='R')})"
+                if member.timed_out_until
+                else "no timeout that was applied."
+            )
             await interaction.edit_original_response(
-                content="The user was successfully muted.",
+                content=f"Test for timeout failed. Found {timeout_str}",
                 embed=None,
                 view=None,
             )
+            return
+        # User was successfully muted
+        await interaction.edit_original_response(
+            content="The user was successfully muted.",
+            embed=None,
+            view=None,
+        )
 
     @app_commands.command(
         description="Staff command. Allows staff to manipulate the CRON list.",
