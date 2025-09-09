@@ -528,31 +528,47 @@ class StaffEssential(StaffCommands):
             ephemeral=True,
         )
         await view.wait()
+        if not view.value:
+            await interaction.edit_original_response(
+                content="Cancelled",
+                embed=None,
+                view=None,
+            )
+            return
+        muted_role = discord.utils.get(interaction.guild.roles, name=ROLE_MUTED)
+        if not muted_role:
+            raise Exception("Muted role was not found.")
 
         # Handle response
-        if view.value:
-            try:
+        try:
+            if member.timed_out_until:
                 await member.timeout(
                     None,
                     reason=generate_audit_reason_message(interaction, reason),
                 )
-            except Exception:
-                logger.exception("Unable to remove the Muted role from a given user.")
+            if muted_role in member.roles:
+                await member.remove_roles(
+                    muted_role,
+                    reason=f"(Removed) {muted_role.name}. {generate_audit_reason_message(interaction, reason)}",
+                )
+        except Exception:
+            logger.exception("Unable to remove the Muted role from a given user.")
 
         # Test user was unmuted
-        if not member.timed_out_until:
-            await interaction.edit_original_response(
-                content="The user was successfully unmuted.",
-                embed=None,
-                view=None,
-            )
-        else:
+        if member.timed_out_until or muted_role in member.roles:
             await interaction.edit_original_response(
                 content="The user was not unmuted because of an error. They remain muted. Please contact a bot "
                 "developer about this issue.",
                 embed=None,
                 view=None,
             )
+            return
+
+        await interaction.edit_original_response(
+            content="The user was successfully unmuted.",
+            embed=None,
+            view=None,
+        )
 
     @app_commands.command(
         description="Staff command. Bans a user from the server.",
@@ -723,12 +739,11 @@ class StaffEssential(StaffCommands):
                 "Both `mute_length` and `until` were set. Please only set one.",
             )
 
-        if mute_length:
+        selected_time = None
+        time_statement = "The user will never be automatically unmuted."
+        if mute_length and mute_length != "Indefinitely":
             selected_time = self.time_str_to_datetime(mute_length)
-            if mute_length == "Indefinitely":
-                time_statement = "The user will never be automatically unmuted."
-            else:
-                time_statement = f"The user will be muted until {discord.utils.format_dt(selected_time)}."
+            time_statement = f"The user will be muted until {discord.utils.format_dt(selected_time)}."
         if until:
             selected_time = datetime.datetime.fromtimestamp(
                 until,
@@ -763,42 +778,67 @@ class StaffEssential(StaffCommands):
         )
 
         await view.wait()
-        if view.value:
-            try:
-                if quiet == "no":
-                    alert_embed = discord.Embed(
-                        title="You have been muted in the Scioly.org server.",
-                        color=discord.Color.brand_red(),
-                        description=f"""
-                        You have been {"permanently" if mute_length == "Indefinitely" else "temporarily"} muted from the Scioly.org server, due to the following reason: `{reason}`
-
-                        If you have any concerns about your mute, you may contact a staff member through the Scioly.org website. Please note that repeated violations may result in a ban, IP ban, or other further action. Thank you!
-                        """,
-                    )
-                    await member.send(
-                        "Notice from the Scioly.org server:",
-                        embed=alert_embed,
-                    )
-                await member.timeout(
-                    selected_time,
-                    reason=generate_audit_reason_message(interaction, reason),
-                )
-            except Exception as e:
-                logger.warning(e)
-
-        # Test
-        if not member.timed_out_until or member.timed_out_until != selected_time:
-            timeout_str = (
-                f"timeout that ends {discord.utils.format_dt(member.timed_out_until)} ({discord.utils.format_dt(member.timed_out_until, style='R')})"
-                if member.timed_out_until
-                else "no timeout that was applied."
-            )
+        if not view.value:
             await interaction.edit_original_response(
-                content=f"Test for timeout failed. Found {timeout_str}",
+                content="Cancelled",
                 embed=None,
                 view=None,
             )
             return
+        muted_role = discord.utils.get(interaction.guild.roles, name=ROLE_MUTED)
+        if not muted_role:
+            raise Exception("Muted role was not found.")
+        try:
+            if quiet == "no":
+                alert_embed = discord.Embed(
+                    title="You have been muted in the Scioly.org server.",
+                    color=discord.Color.brand_red(),
+                    description=f"""
+                    You have been {"permanently" if mute_length == "Indefinitely" else "temporarily"} muted from the Scioly.org server, due to the following reason: `{reason}`
+
+                    If you have any concerns about your mute, you may contact a staff member through the Scioly.org website. Please note that repeated violations may result in a ban, IP ban, or other further action. Thank you!
+                    """,
+                )
+                await member.send(
+                    "Notice from the Scioly.org server:",
+                    embed=alert_embed,
+                )
+            if selected_time:
+                await member.timeout(
+                    selected_time,
+                    reason=generate_audit_reason_message(interaction, reason),
+                )
+            else:
+                await member.add_roles(
+                    muted_role,
+                    reason=f"(Added) {muted_role.name}. {generate_audit_reason_message(interaction, reason)}",
+                )
+        except Exception as e:
+            logger.warning(e)
+            raise e
+
+        # Test
+        if selected_time:
+            if not member.timed_out_until or member.timed_out_until != selected_time:
+                timeout_str = (
+                    f"timeout that ends {discord.utils.format_dt(member.timed_out_until)} ({discord.utils.format_dt(member.timed_out_until, style='R')})"
+                    if member.timed_out_until
+                    else "no timeout that was applied"
+                )
+                await interaction.edit_original_response(
+                    content=f"Test for timeout failed. Found {timeout_str} on {member.mention}.",
+                    embed=None,
+                    view=None,
+                )
+                return
+        else:
+            if muted_role not in member.roles:
+                await interaction.edit_original_response(
+                    content=f"Test for timeout failed. Did not find {muted_role.name} role on {member.mention}",
+                    embed=None,
+                    view=None,
+                )
+
         # User was successfully muted
         await interaction.edit_original_response(
             content="The user was successfully muted.",
