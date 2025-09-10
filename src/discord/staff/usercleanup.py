@@ -137,13 +137,33 @@ class UnconfirmedCleanupCancel(ui.View):
                     continue
                 if member_role not in member.roles:
                     try:
-                        await member.kick(
-                            reason="Server cleanup. Please rejoin the server if available (discord.gg/{})".format(
+                        # We cannot send a message to the user after they are
+                        # kicked, so we must send one first before we call
+                        # kick()
+                        await member.send(
+                            (
+                                "Notice from the Scioly.org server: You were kicked "
+                                "from the Scioly.org server since you did not "
+                                "fill out the onboarding survey fully. You are "
+                                "free to rejoin the server at your earliest "
+                                "convenience (https://discord.gg/{})"
+                            ).format(
                                 DISCORD_DEFAULT_INVITE_ENDING,
                             ),
                         )
                     except HTTPException as e:
                         logging.warning(
+                            "{}: Could not send message notify user @{}: {}",
+                            interaction.command.qualified_name,
+                            member.name,
+                            e,
+                        )
+                    try:
+                        await member.kick(
+                            reason="Server cleanup - Did not fill out onboarding survey",
+                        )
+                    except HTTPException as e:
+                        logging.error(
                             "{}: Failed to kick user @{}: {}",
                             interaction.command.qualified_name,
                             member.name,
