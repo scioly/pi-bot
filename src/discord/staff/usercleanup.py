@@ -4,7 +4,7 @@ from collections.abc import Sequence
 
 import discord
 from discord import AllowedMentions, Member, Role, app_commands, ui
-from discord.errors import Forbidden, HTTPException
+from discord.errors import HTTPException
 from discord.ext import commands
 from typing_extensions import Self
 
@@ -139,7 +139,7 @@ class UnconfirmedCleanupCancel(ui.View):
                                 DISCORD_DEFAULT_INVITE_ENDING,
                             ),
                         )
-                    except (Forbidden, HTTPException) as e:
+                    except HTTPException as e:
                         logging.warning(
                             "{}: Failed to kick user @{}: {}",
                             interaction.command.qualified_name,
@@ -202,6 +202,7 @@ class UserCleanup(commands.Cog):
         description="Kicks any person with the old Unconfirmed role with. Meant to be run one time.",
     )
     @app_commands.checks.has_any_role(ROLE_STAFF, ROLE_VIP)
+    @app_commands.checks.bot_has_permissions(kick_members=True, send_messages=True)
     async def remove_unconfirmed_users(self, interaction: discord.Interaction):
         """
         Kicks any users that do not have the Member role in the current server
