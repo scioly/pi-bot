@@ -94,3 +94,13 @@ class Settings(Document):
     class Settings:
         name = "settings"
         use_cache = True
+
+
+class UserRoles(Document):
+    user_id: int
+    guild_id: int
+    roles: list[str]
+
+    class Settings:
+        name = "user_roles"
+        use_cache = False
