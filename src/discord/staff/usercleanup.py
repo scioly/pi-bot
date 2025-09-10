@@ -150,6 +150,7 @@ class UnconfirmedCleanupCancel(ui.View):
                             e,
                         )
                         failed_members.append(member)
+                    await asyncio.sleep(DISCORD_LONG_TERM_RATE_LIMIT)
 
             async with lock:
                 members_processed += (
