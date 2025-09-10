@@ -132,6 +132,9 @@ class UnconfirmedCleanupCancel(ui.View):
                 if cancel_event.is_set():
                     extra_processed = i
                     break
+                if member.bot:
+                    # Ignore all bots
+                    continue
                 if member_role not in member.roles:
                     try:
                         await member.kick(
