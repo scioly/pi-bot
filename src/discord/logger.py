@@ -2,6 +2,7 @@
 Logs actions that happened on the Scioly.org Discord server to specific information
 buckets, such as a Discord channel or database log.
 """
+
 from __future__ import annotations
 
 import logging
@@ -19,7 +20,6 @@ from src.discord.globals import (
     CHANNEL_EDITEDM,
     CHANNEL_LEAVE,
     CHANNEL_LOUNGE,
-    ROLE_UC,
 )
 
 if TYPE_CHECKING:
@@ -54,9 +54,11 @@ class Logger(commands.Cog):
         # Create an embed containing the direct message info and send it to the log channel
         message_embed = discord.Embed(
             title=":speech_balloon: Incoming Direct Message to Pi-Bot",
-            description=message.content
-            if len(message.content) > 0
-            else "This message contained no content.",
+            description=(
+                message.content
+                if len(message.content) > 0
+                else "This message contained no content."
+            ),
             color=discord.Color.brand_green(),
         )
         message_embed.add_field(
@@ -72,11 +74,13 @@ class Logger(commands.Cog):
         )
         message_embed.add_field(
             name="Attachments",
-            value=" | ".join(
-                [f"**{a.filename}**: [Link]({a.url})" for a in message.attachments],
-            )
-            if len(message.attachments) > 0
-            else "None",
+            value=(
+                " | ".join(
+                    [f"**{a.filename}**: [Link]({a.url})" for a in message.attachments],
+                )
+                if len(message.attachments) > 0
+                else "None"
+            ),
             inline=True,
         )
         await dm_channel.send(embed=message_embed)
@@ -117,16 +121,9 @@ class Logger(commands.Cog):
             member.guild.text_channels,
             name=CHANNEL_LEAVE,
         )
-        unconfirmed_role = discord.utils.get(member.guild.roles, name=ROLE_UC)
         assert isinstance(leave_channel, discord.TextChannel)
-        assert isinstance(unconfirmed_role, discord.Role)
 
-        if unconfirmed_role in member.roles:
-            unconfirmed_statement = ":white_check_mark:"
-            embed = discord.Embed(color=discord.Color.yellow())
-        else:
-            unconfirmed_statement = ":x:"
-            embed = discord.Embed(color=discord.Color.brand_red())
+        embed = discord.Embed(color=discord.Color.brand_red())
 
         embed.title = "Member Leave"
 
@@ -141,7 +138,6 @@ class Logger(commands.Cog):
         )
 
         embed.add_field(name="Joined At", value=joined_at)
-        embed.add_field(name="Unconfirmed", value=unconfirmed_statement)
         await leave_channel.send(embed=embed)
 
     @commands.Cog.listener()
@@ -382,35 +378,41 @@ class Logger(commands.Cog):
                 },
                 {
                     "name": "Attachments",
-                    "value": " | ".join(
-                        [
-                            f"**{a.filename}**: [Link]({a.url})"
-                            for a in message.attachments
-                        ],
-                    )
-                    if len(message.attachments) > 0
-                    else "None",
+                    "value": (
+                        " | ".join(
+                            [
+                                f"**{a.filename}**: [Link]({a.url})"
+                                for a in message.attachments
+                            ],
+                        )
+                        if len(message.attachments) > 0
+                        else "None"
+                    ),
                     "inline": "False",
                 },
                 {
                     "name": "Past Content",
-                    "value": message.content[:1024]
-                    if len(message.content) > 0
-                    else "None",
+                    "value": (
+                        message.content[:1024] if len(message.content) > 0 else "None"
+                    ),
                     "inline": "False",
                 },
                 {
                     "name": "New Content",
-                    "value": message_now.content[:1024]
-                    if len(message_now.content) > 0
-                    else "None",
+                    "value": (
+                        message_now.content[:1024]
+                        if len(message_now.content) > 0
+                        else "None"
+                    ),
                     "inline": "False",
                 },
                 {
                     "name": "Embed",
-                    "value": "\n".join([str(e.to_dict()) for e in message.embeds])
-                    if len(message.embeds) > 0
-                    else "None",
+                    "value": (
+                        "\n".join([str(e.to_dict()) for e in message.embeds])
+                        if len(message.embeds) > 0
+                        else "None"
+                    ),
                     "inline": "False",
                 },
             ]
@@ -454,37 +456,43 @@ class Logger(commands.Cog):
                 },
                 {
                     "name": "Edited At",
-                    "value": discord.utils.format_dt(message_now.edited_at, "R")
-                    if message_now.edited_at is not None
-                    else "Never",
+                    "value": (
+                        discord.utils.format_dt(message_now.edited_at, "R")
+                        if message_now.edited_at is not None
+                        else "Never"
+                    ),
                     "inline": True,
                 },
                 {
                     "name": "New Content",
-                    "value": message_now.content[:1024]
-                    if len(message_now.content) > 0
-                    else "None",
+                    "value": (
+                        message_now.content[:1024]
+                        if len(message_now.content) > 0
+                        else "None"
+                    ),
                     "inline": "False",
                 },
                 {
                     "name": "Current Attachments",
-                    "value": " | ".join(
-                        [
-                            f"**{a.filename}**: [Link]({a.url})"
-                            for a in message_now.attachments
-                        ],
-                    )
-                    if len(message_now.attachments) > 0
-                    else "None",
+                    "value": (
+                        " | ".join(
+                            [
+                                f"**{a.filename}**: [Link]({a.url})"
+                                for a in message_now.attachments
+                            ],
+                        )
+                        if len(message_now.attachments) > 0
+                        else "None"
+                    ),
                     "inline": "False",
                 },
                 {
                     "name": "Current Embed",
-                    "value": "\n".join([str(e.to_dict()) for e in message_now.embeds])[
-                        :1024
-                    ]
-                    if len(message_now.embeds) > 0
-                    else "None",
+                    "value": (
+                        "\n".join([str(e.to_dict()) for e in message_now.embeds])[:1024]
+                        if len(message_now.embeds) > 0
+                        else "None"
+                    ),
                     "inline": "False",
                 },
             ]
@@ -551,30 +559,34 @@ class Logger(commands.Cog):
                 },
                 {
                     "name": "Attachments",
-                    "value": " | ".join(
-                        [
-                            f"**{a.filename}**: [Link]({a.url})"
-                            for a in message.attachments
-                        ],
-                    )
-                    if len(message.attachments) > 0
-                    else "None",
+                    "value": (
+                        " | ".join(
+                            [
+                                f"**{a.filename}**: [Link]({a.url})"
+                                for a in message.attachments
+                            ],
+                        )
+                        if len(message.attachments) > 0
+                        else "None"
+                    ),
                     "inline": "False",
                 },
                 {
                     "name": "Content",
-                    "value": str(message.content)[:1024]
-                    if len(message.content) > 0
-                    else "None",
+                    "value": (
+                        str(message.content)[:1024]
+                        if len(message.content) > 0
+                        else "None"
+                    ),
                     "inline": "False",
                 },
                 {
                     "name": "Embed",
-                    "value": "\n".join([str(e.to_dict()) for e in message.embeds])[
-                        :1024
-                    ]
-                    if len(message.embeds) > 0
-                    else "None",
+                    "value": (
+                        "\n".join([str(e.to_dict()) for e in message.embeds])[:1024]
+                        if len(message.embeds) > 0
+                        else "None"
+                    ),
                     "inline": "False",
                 },
             ]

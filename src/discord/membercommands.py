@@ -2,6 +2,7 @@
 Functionality for most member commands. These commands frequently help members manage
 their state on the server, including allowing them to change their roles or subscriptions.
 """
+
 from __future__ import annotations
 
 import datetime
@@ -22,6 +23,7 @@ from src.discord.globals import (
     CATEGORY_STAFF,
     CHANNEL_INVITATIONALS,
     CHANNEL_UNSELFMUTE,
+    DISCORD_DEFAULT_INVITE_ENDING,
     ROLE_LH,
     ROLE_MR,
     ROLE_SELFMUTE,
@@ -407,7 +409,9 @@ class MemberCommands(commands.Cog):
         Args:
             interaction (discord.Interaction): The interaction sent by Discord.
         """
-        await interaction.response.send_message("https://discord.gg/C9PGV6h")
+        await interaction.response.send_message(
+            f"https://discord.gg/{DISCORD_DEFAULT_INVITE_ENDING}",
+        )
 
     @app_commands.command(
         description="Returns a link to the Scioly.org forums.",

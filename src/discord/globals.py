@@ -8,6 +8,7 @@ from src.mongo.models import Censor, Event, Invitational, Ping, Tag
 ##############
 # CONSTANTS
 ##############
+DISCORD_DEFAULT_INVITE_ENDING = "scioly"
 DISCORD_INVITE_ENDINGS = [
     "9Z5zKtV",
     "C9PGV6h",
@@ -16,7 +17,7 @@ DISCORD_INVITE_ENDINGS = [
     "gh3aXbq",
     "skGQXd4",
     "RnkqUbK",
-    "scioly",
+    DISCORD_DEFAULT_INVITE_ENDING,
 ]
 
 # Roles
@@ -30,7 +31,6 @@ ROLE_LH = "Launch Helper"
 ROLE_AT = "All Invitationals"
 ROLE_GAMES = "Games"
 ROLE_MR = "Member"
-ROLE_UC = "Unconfirmed"
 ROLE_DIV_A = "Division A"
 ROLE_DIV_B = "Division B"
 ROLE_DIV_C = "Division C"
@@ -116,6 +116,7 @@ RULES = [
 DISCORD_AUTOCOMPLETE_MAX_ENTRIES = 25
 # The maximum number of options that can be passed into a discord.ui.Select
 DISCORD_SELECT_MAX_OPTIONS = 20
+DISCORD_LONG_TERM_RATE_LIMIT = 1  # 5 requests / 5 seconds, so might as well keep 1 request / 1 second for long running tasks
 
 ##############
 # VARIABLES
