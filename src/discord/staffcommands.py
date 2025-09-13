@@ -745,6 +745,11 @@ class StaffEssential(StaffCommands):
             selected_time = self.time_str_to_datetime(mute_length)
             time_statement = f"The user will be muted until {discord.utils.format_dt(selected_time)}."
         if until:
+            if until <= datetime.datetime.now(tz=datetime.timezone.utc).timestamp():
+                raise Exception(
+                    "`until` unix timestamp must be set in the future. No timeout will be applied otherwise.",
+                )
+
             selected_time = datetime.datetime.fromtimestamp(
                 until,
                 tz=datetime.timezone.utc,
@@ -785,6 +790,13 @@ class StaffEssential(StaffCommands):
                 view=None,
             )
             return
+        if selected_time and selected_time <= datetime.datetime.now(
+            tz=datetime.timezone.utc,
+        ):
+            await interaction.edit_original_response(
+                content="Proposed expiration timestamp is now set in the past. No timeout will be applied.",
+            )
+            return
         muted_role = discord.utils.get(interaction.guild.roles, name=ROLE_MUTED)
         if not muted_role:
             raise Exception("Muted role was not found.")
@@ -818,23 +830,27 @@ class StaffEssential(StaffCommands):
             raise e
 
         # Test
+        updated_member = await interaction.guild.fetch_member(member.id)
         if selected_time:
-            if not member.timed_out_until or member.timed_out_until != selected_time:
+            if (
+                not updated_member.timed_out_until
+                or updated_member.timed_out_until != selected_time
+            ):
                 timeout_str = (
-                    f"timeout that ends {discord.utils.format_dt(member.timed_out_until)} ({discord.utils.format_dt(member.timed_out_until, style='R')})"
-                    if member.timed_out_until
+                    f"timeout that ends {discord.utils.format_dt(updated_member.timed_out_until)} ({discord.utils.format_dt(updated_member.timed_out_until, style='R')})"
+                    if updated_member.timed_out_until
                     else "no timeout that was applied"
                 )
                 await interaction.edit_original_response(
-                    content=f"Test for timeout failed. Found {timeout_str} on {member.mention}.",
+                    content=f"Test for timeout failed. Found {timeout_str} on {updated_member.mention}.",
                     embed=None,
                     view=None,
                 )
                 return
         else:
-            if muted_role not in member.roles:
+            if muted_role not in updated_member.roles:
                 await interaction.edit_original_response(
-                    content=f"Test for timeout failed. Did not find {muted_role.name} role on {member.mention}",
+                    content=f"Test for timeout failed. Did not find {muted_role.name} role on {updated_member.mention}",
                     embed=None,
                     view=None,
                 )
