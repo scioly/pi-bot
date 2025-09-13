@@ -113,6 +113,9 @@ class UserCleanup(commands.Cog):
 
         await view.wait()
 
+        if not view.value:
+            return
+
         total_member_count = interaction.guild.member_count or len(
             interaction.guild.members,
         )
