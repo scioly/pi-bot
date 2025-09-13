@@ -128,7 +128,9 @@ class UserCleanup(commands.Cog):
         end_progress_event = asyncio.Event()
 
         async def progress_updater(end_signal: asyncio.Event):
-            while not end_signal.is_set():
+            if end_signal.is_set():
+                return
+            while True:
                 async with lock:
                     progress_message = (
                         "{} {}/~{} users processed\n{}/{} users kicked".format(
@@ -148,7 +150,14 @@ class UserCleanup(commands.Cog):
                             view=cancel_progress_view,
                         ),
                     )
-                await asyncio.sleep(DISCORD_LONG_TERM_RATE_LIMIT)
+                try:
+                    await asyncio.wait_for(
+                        end_signal.wait(),
+                        timeout=DISCORD_LONG_TERM_RATE_LIMIT,
+                    )
+                    break
+                except asyncio.TimeoutError:
+                    pass
 
             if final_message:
                 await final_message
