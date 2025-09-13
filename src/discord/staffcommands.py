@@ -745,6 +745,11 @@ class StaffEssential(StaffCommands):
             selected_time = self.time_str_to_datetime(mute_length)
             time_statement = f"The user will be muted until {discord.utils.format_dt(selected_time)}."
         if until:
+            if until <= datetime.datetime.now(tz=datetime.timezone.utc).timestamp():
+                raise Exception(
+                    "`until` unix timestamp must be set in the future. No timeout will be applied otherwise.",
+                )
+
             selected_time = datetime.datetime.fromtimestamp(
                 until,
                 tz=datetime.timezone.utc,
@@ -783,6 +788,13 @@ class StaffEssential(StaffCommands):
                 content="Cancelled",
                 embed=None,
                 view=None,
+            )
+            return
+        if selected_time and selected_time <= datetime.datetime.now(
+            tz=datetime.timezone.utc,
+        ):
+            await interaction.edit_original_response(
+                content="Proposed expiration timestamp is now set in the past. No timeout will be applied.",
             )
             return
         muted_role = discord.utils.get(interaction.guild.roles, name=ROLE_MUTED)
