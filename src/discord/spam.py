@@ -6,13 +6,9 @@ from typing import TYPE_CHECKING
 import discord
 from discord.ext import commands
 
-from env import env
-from src.discord.globals import ROLE_MUTED
-
 if TYPE_CHECKING:
     from bot import PiBot
     from src.discord.reporter import Reporter
-    from src.discord.tasks import CronTasks
 
 
 class SpamManager(commands.Cog):
@@ -128,16 +124,9 @@ class SpamManager(commands.Cog):
         """
         Mutes the user and schedules an unmute for an hour later in CRON.
         """
-        guild: discord.Guild = self.bot.get_guild(env.server_id)
-        muted_role = discord.utils.get(guild.roles, name=ROLE_MUTED)
         unmute_time = discord.utils.utcnow() + datetime.timedelta(hours=1)
 
-        # Type checking
-        assert isinstance(muted_role, discord.Role)
-
-        cron_cog: commands.Cog | CronTasks = self.bot.get_cog("CronTasks")
-        await cron_cog.schedule_unmute(member, unmute_time)
-        await member.add_roles(muted_role)
+        await member.timeout(unmute_time, reason="Automatic - spam")
 
     async def store_and_validate(self, message: discord.Message) -> None:
         """

@@ -459,7 +459,9 @@ class StaffEssential(StaffCommands):
                         "Notice from the Scioly.org server:",
                         embed=alert_embed,
                     )
-                await member.kick(reason=reason)
+                await member.kick(
+                    reason=generate_audit_reason_message(interaction, reason),
+                )
             except Exception:
                 pass
 
@@ -485,14 +487,21 @@ class StaffEssential(StaffCommands):
     @app_commands.checks.has_any_role(ROLE_STAFF, ROLE_VIP)
     @app_commands.default_permissions(manage_roles=True)
     @app_commands.guilds(*env.slash_command_guilds)
-    @app_commands.describe(member="The user to unmute.")
-    async def unmute(self, interaction: discord.Interaction, member: discord.Member):
+    @app_commands.describe(
+        member="The user to unmute.",
+        reason="The reason to unmute the user.",
+    )
+    async def unmute(
+        self,
+        interaction: discord.Interaction,
+        member: discord.Member,
+        reason: str | None,
+    ):
         """Unmutes a user."""
         # Check caller is staff
         commandchecks.is_staff_from_ctx(interaction)
 
-        role = discord.utils.get(member.guild.roles, name=ROLE_MUTED)
-        if role not in member.roles:
+        if not member.timed_out_until:
             return await interaction.response.send_message(
                 "The user can't be unmuted because they aren't currently muted.",
             )
@@ -519,28 +528,47 @@ class StaffEssential(StaffCommands):
             ephemeral=True,
         )
         await view.wait()
-
-        # Handle response
-        if view.value:
-            try:
-                await member.remove_roles(role)
-            except Exception:
-                logger.exception("Unable to remove the Muted role from a given user.")
-
-        # Test user was unmuted
-        if role not in member.roles:
+        if not view.value:
             await interaction.edit_original_response(
-                content="The user was successfully unmuted.",
+                content="Cancelled",
                 embed=None,
                 view=None,
             )
-        else:
+            return
+        muted_role = discord.utils.get(interaction.guild.roles, name=ROLE_MUTED)
+        if not muted_role:
+            raise Exception("Muted role was not found.")
+
+        # Handle response
+        try:
+            if member.timed_out_until:
+                await member.timeout(
+                    None,
+                    reason=generate_audit_reason_message(interaction, reason),
+                )
+            if muted_role in member.roles:
+                await member.remove_roles(
+                    muted_role,
+                    reason=f"(Removed) {muted_role.name}. {generate_audit_reason_message(interaction, reason)}",
+                )
+        except Exception:
+            logger.exception("Unable to remove the Muted role from a given user.")
+
+        # Test user was unmuted
+        if member.timed_out_until or muted_role in member.roles:
             await interaction.edit_original_response(
                 content="The user was not unmuted because of an error. They remain muted. Please contact a bot "
                 "developer about this issue.",
                 embed=None,
                 view=None,
             )
+            return
+
+        await interaction.edit_original_response(
+            content="The user was successfully unmuted.",
+            embed=None,
+            view=None,
+        )
 
     @app_commands.command(
         description="Staff command. Bans a user from the server.",
@@ -636,7 +664,7 @@ class StaffEssential(StaffCommands):
                 # Ban member
                 await interaction.guild.ban(
                     member,
-                    reason=reason,
+                    reason=generate_audit_reason_message(interaction, reason),
                     delete_message_days=delete_days,
                 )
             except Exception:
@@ -669,27 +697,32 @@ class StaffEssential(StaffCommands):
     @app_commands.describe(
         member="The user to mute.",
         reason="The reason to mute the user.",
-        mute_length="How long to mute the user for.",
+        mute_length="How long to mute the user for. Mutally exclusive to `until`.",
+        until="Unix timestamp (in seconds) representing how long to leave user muted until. Mutally exclusive to `mute_length`.",
         quiet="Does not DM the user upon mute. Defaults to no.",
     )
     async def mute(
         self,
-        interaction,
+        interaction: discord.Interaction,
         member: discord.Member,
-        reason: str,
-        mute_length: Literal[
-            "10 minutes",
-            "30 minutes",
-            "1 hour",
-            "2 hours",
-            "8 hours",
-            "1 day",
-            "4 days",
-            "7 days",
-            "1 month",
-            "1 year",
-            "Indefinitely",
-        ],
+        reason: str | None,
+        mute_length: (
+            Literal[
+                "10 minutes",
+                "30 minutes",
+                "1 hour",
+                "2 hours",
+                "8 hours",
+                "1 day",
+                "4 days",
+                "7 days",
+                "1 month",
+                "1 year",
+                "Indefinitely",
+            ]
+            | None
+        ),
+        until: int | None,
         quiet: Literal["yes", "no"] = "no",
     ):
         """
@@ -697,10 +730,25 @@ class StaffEssential(StaffCommands):
         """
         commandchecks.is_staff_from_ctx(interaction)
 
-        selected_time = self.time_str_to_datetime(mute_length)
-        if mute_length == "Indefinitely":
-            time_statement = "The user will never be automatically unmuted."
-        else:
+        if mute_length is None and until is None:
+            raise Exception(
+                "Both `mute_length` and `until` were not set. Please provide a value for one of these arguments.",
+            )
+        if mute_length is not None and until is not None:
+            raise Exception(
+                "Both `mute_length` and `until` were set. Please only set one.",
+            )
+
+        selected_time = None
+        time_statement = "The user will never be automatically unmuted."
+        if mute_length and mute_length != "Indefinitely":
+            selected_time = self.time_str_to_datetime(mute_length)
+            time_statement = f"The user will be muted until {discord.utils.format_dt(selected_time)}."
+        if until:
+            selected_time = datetime.datetime.fromtimestamp(
+                until,
+                tz=datetime.timezone.utc,
+            )
             time_statement = f"The user will be muted until {discord.utils.format_dt(selected_time)}."
 
         original_shown_embed = discord.Embed(
@@ -730,39 +778,73 @@ class StaffEssential(StaffCommands):
         )
 
         await view.wait()
-        role = discord.utils.get(member.guild.roles, name=ROLE_MUTED)
-        if view.value:
-            try:
-                if quiet == "no":
-                    alert_embed = discord.Embed(
-                        title="You have been muted in the Scioly.org server.",
-                        color=discord.Color.brand_red(),
-                        description=f"""
-                        You have been {"permanently" if mute_length == "Indefinitely" else "temporarily"} muted from the Scioly.org server, due to the following reason: `{reason}`
-
-                        If you have any concerns about your mute, you may contact a staff member through the Scioly.org website. Please note that repeated violations may result in a ban, IP ban, or other further action. Thank you!
-                        """,
-                    )
-                    await member.send(
-                        "Notice from the Scioly.org server:",
-                        embed=alert_embed,
-                    )
-                await member.add_roles(role)
-            except Exception:
-                pass
-
-        if mute_length != "Indefinitely":
-            cron_tasks_cog: commands.Cog | CronTasks = self.bot.get_cog("CronTasks")
-            await cron_tasks_cog.schedule_unmute(member, selected_time)
-
-        # Test
-        if role in member.roles:
-            # User was successfully muted
+        if not view.value:
             await interaction.edit_original_response(
-                content="The user was successfully muted.",
+                content="Cancelled",
                 embed=None,
                 view=None,
             )
+            return
+        muted_role = discord.utils.get(interaction.guild.roles, name=ROLE_MUTED)
+        if not muted_role:
+            raise Exception("Muted role was not found.")
+        try:
+            if quiet == "no":
+                alert_embed = discord.Embed(
+                    title="You have been muted in the Scioly.org server.",
+                    color=discord.Color.brand_red(),
+                    description=f"""
+                    You have been {"permanently" if mute_length == "Indefinitely" else "temporarily"} muted from the Scioly.org server, due to the following reason: `{reason}`
+
+                    If you have any concerns about your mute, you may contact a staff member through the Scioly.org website. Please note that repeated violations may result in a ban, IP ban, or other further action. Thank you!
+                    """,
+                )
+                await member.send(
+                    "Notice from the Scioly.org server:",
+                    embed=alert_embed,
+                )
+            if selected_time:
+                await member.timeout(
+                    selected_time,
+                    reason=generate_audit_reason_message(interaction, reason),
+                )
+            else:
+                await member.add_roles(
+                    muted_role,
+                    reason=f"(Added) {muted_role.name}. {generate_audit_reason_message(interaction, reason)}",
+                )
+        except Exception as e:
+            logger.warning(e)
+            raise e
+
+        # Test
+        if selected_time:
+            if not member.timed_out_until or member.timed_out_until != selected_time:
+                timeout_str = (
+                    f"timeout that ends {discord.utils.format_dt(member.timed_out_until)} ({discord.utils.format_dt(member.timed_out_until, style='R')})"
+                    if member.timed_out_until
+                    else "no timeout that was applied"
+                )
+                await interaction.edit_original_response(
+                    content=f"Test for timeout failed. Found {timeout_str} on {member.mention}.",
+                    embed=None,
+                    view=None,
+                )
+                return
+        else:
+            if muted_role not in member.roles:
+                await interaction.edit_original_response(
+                    content=f"Test for timeout failed. Did not find {muted_role.name} role on {member.mention}",
+                    embed=None,
+                    view=None,
+                )
+
+        # User was successfully muted
+        await interaction.edit_original_response(
+            content="The user was successfully muted.",
+            embed=None,
+            view=None,
+        )
 
     @app_commands.command(
         description="Staff command. Allows staff to manipulate the CRON list.",
@@ -1381,6 +1463,16 @@ class StaffNonessential(StaffCommands, name="StaffNonesntl"):
         # Reset bot status to regularly update
         cron_cog: commands.Cog | CronTasks = self.bot.get_cog("CronTasks")
         cron_cog.change_bot_status.restart()
+
+
+def generate_audit_reason_message(
+    interaction: discord.Interaction,
+    reason: str | None,
+) -> str:
+    full_reason = f"On behalf of `{interaction.user.name}` ({interaction.user.mention})"
+    if reason:
+        full_reason += f" - {reason}"
+    return full_reason
 
 
 async def setup(bot: PiBot):
