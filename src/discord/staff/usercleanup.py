@@ -167,6 +167,17 @@ class UserCleanup(commands.Cog):
         def member_predicate(member: discord.Member) -> bool:
             return not member.bot and member_role not in member.roles
 
+        embed_message = discord.Embed(
+            title="You have been kicked in the Scioly.org server.",
+            color=discord.Color.brand_red(),
+            description=(
+                "You were kicked from the Scioly.org server since "
+                "you did not fill out the onboarding survey "
+                "fully. You are free to rejoin the server at "
+                "your earliest convenience "
+                f"(https://discord.gg/{DISCORD_DEFAULT_INVITE_ENDING}).",
+            ),
+        )
         for member_chunk in discord.utils.as_chunks(
             interaction.guild.members,
             chunk_size,
@@ -185,15 +196,8 @@ class UserCleanup(commands.Cog):
                     # kicked, so we must send one first before we call
                     # kick()
                     await member.send(
-                        (
-                            "Notice from the Scioly.org server: You were kicked "
-                            "from the Scioly.org server since you did not "
-                            "fill out the onboarding survey fully. You are "
-                            "free to rejoin the server at your earliest "
-                            "convenience (https://discord.gg/{})"
-                        ).format(
-                            DISCORD_DEFAULT_INVITE_ENDING,
-                        ),
+                        "Notice from the Scioly.org server:",
+                        embed=embed_message,
                     )
                 except HTTPException as e:
                     logging.warning(
