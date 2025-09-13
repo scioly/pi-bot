@@ -1,9 +1,9 @@
 import asyncio
 import logging
-from collections.abc import Sequence
+from asyncio.locks import Event
 
 import discord
-from discord import AllowedMentions, Member, Role, app_commands, ui
+from discord import AllowedMentions, Member, app_commands, ui
 from discord.errors import HTTPException
 from discord.ext import commands
 from typing_extensions import Self
@@ -18,6 +18,7 @@ from src.discord.globals import (
     ROLE_STAFF,
     ROLE_VIP,
 )
+from src.discord.staffcommands import Confirm
 
 
 class UnconfirmedCleanupCancel(ui.View):
@@ -31,24 +32,11 @@ class UnconfirmedCleanupCancel(ui.View):
 
     def __init__(
         self,
-        interaction: discord.Interaction,
         initiator: discord.User | discord.Member,
-        member_role: Role,
-        total_member_count: int,
-        members: Sequence[Member],
     ):
         super().__init__(timeout=None)
         self.initiator = initiator
         self.cancel_flag = asyncio.Event()
-        self.task = asyncio.create_task(
-            self.task_handler(
-                interaction,
-                self.cancel_flag,
-                member_role,
-                total_member_count,
-                members,
-            ),
-        )
 
     async def interaction_check(
         self,
@@ -65,149 +53,15 @@ class UnconfirmedCleanupCancel(ui.View):
     @discord.ui.button(label="Cancel", style=discord.ButtonStyle.red)
     async def cancel(
         self,
-        interaction: discord.Interaction,
+        _: discord.Interaction,
         button: discord.ui.Button[Self],
     ) -> None:
         button.disabled = True
         button.label = "Cancelling ..."
         self.cancel_flag.set()
 
-        async def handle_done():
-            await interaction.edit_original_response(content="Cancelled")
-
-        self.task.add_done_callback(lambda _: asyncio.create_task(handle_done()))
-
-    async def task_handler(
-        self,
-        interaction: discord.Interaction[discord.Client],
-        cancel_event: asyncio.Event,
-        member_role: Role,
-        total_member_count: int,
-        members: Sequence[Member],
-    ):
-        """
-        In charge of processing all users to kick. Passes message rendering to another async task.
-
-        Can be cancelled via button action. If cancelled, the coroutine is gracefully terminated.
-        """
-        if not interaction.command:
-            raise Exception("Handler was not invoked via command")
-        if not interaction.guild:
-            raise Exception("Command should be invoked within a server")
-        chunk_size = 100
-        members_processed = 0
-        members_failed: list[Member] = []
-        lock = asyncio.Lock()
-
-        end_event = asyncio.Event()
-
-        async def progress_updater(end_signal: asyncio.Event):
-            while not end_signal.is_set():
-                async with lock:
-                    progress_message = "{} {}/~{} users processed".format(
-                        EMOJI_LOADING,
-                        members_processed,
-                        total_member_count,
-                    )
-                    for failed_member in members_failed:
-                        progress_message += f"\n{failed_member.mention}"
-                    final_message = asyncio.create_task(
-                        interaction.edit_original_response(
-                            content=progress_message,
-                            view=self,
-                            allowed_mentions=AllowedMentions.none(),
-                        ),
-                    )
-                await asyncio.sleep(DISCORD_LONG_TERM_RATE_LIMIT)
-
-            if final_message:
-                await final_message
-
-        ui_updater = asyncio.create_task(progress_updater(end_event))
-
-        for member_chunk in discord.utils.as_chunks(members, chunk_size):
-            failed_members: list[Member] = []
-            extra_processed = None
-            for i, member in enumerate(member_chunk):
-                if cancel_event.is_set():
-                    extra_processed = i
-                    break
-                if member.bot:
-                    # Ignore all bots
-                    continue
-                if member_role not in member.roles:
-                    try:
-                        # We cannot send a message to the user after they are
-                        # kicked, so we must send one first before we call
-                        # kick()
-                        await member.send(
-                            (
-                                "Notice from the Scioly.org server: You were kicked "
-                                "from the Scioly.org server since you did not "
-                                "fill out the onboarding survey fully. You are "
-                                "free to rejoin the server at your earliest "
-                                "convenience (https://discord.gg/{})"
-                            ).format(
-                                DISCORD_DEFAULT_INVITE_ENDING,
-                            ),
-                        )
-                    except HTTPException as e:
-                        logging.warning(
-                            "{}: Could not send message notify user @{}: {}",
-                            interaction.command.qualified_name,
-                            member.name,
-                            e,
-                        )
-                    try:
-                        await member.kick(
-                            reason="Server cleanup - Did not fill out onboarding survey",
-                        )
-                    except HTTPException as e:
-                        logging.error(
-                            "{}: Failed to kick user @{}: {}",
-                            interaction.command.qualified_name,
-                            member.name,
-                            e,
-                        )
-                        failed_members.append(member)
-                    await asyncio.sleep(DISCORD_LONG_TERM_RATE_LIMIT)
-
-            async with lock:
-                members_processed += (
-                    extra_processed if extra_processed else len(member_chunk)
-                )
-                members_failed.extend(failed_members)
-            if cancel_event.is_set():
-                break
-
-        end_event.set()
-        await ui_updater
-
-        users_with_unconfirmed_role = sum(
-            [
-                1
-                async for member in interaction.guild.fetch_members(limit=None)
-                if member_role not in member.roles
-            ],
-        )
-
-        progress_message = "Completed"
-        if cancel_event.is_set():
-            progress_message = "Cancelled"
-        for failed_member in members_failed:
-            progress_message += f"\n{failed_member.mention}"
-        if users_with_unconfirmed_role > 0:
-            progress_message += (
-                "\nThere exist {} user(s) that does not have the {} role".format(
-                    users_with_unconfirmed_role,
-                    member_role.name,
-                )
-            )
-
-        return await interaction.edit_original_response(
-            content=progress_message,
-            allowed_mentions=AllowedMentions.none(),
-        )
+    def get_cancel_event(self) -> Event:
+        return self.cancel_flag
 
 
 class UserCleanup(commands.Cog):
@@ -248,15 +102,144 @@ class UserCleanup(commands.Cog):
                 f"Could not find role `{ROLE_MR}`. Please make sure it exists and the bot has adequate permissions.",
             )
 
+        view = Confirm(
+            interaction.user,
+            "Cleanup operation was cancelled. All unconfirmed users should still be on the server.",
+        )
         await interaction.response.send_message(
-            view=UnconfirmedCleanupCancel(
-                interaction,
-                interaction.user,
-                member_role,
-                total_member_count=interaction.guild.member_count
-                or len(interaction.guild.members),
-                members=interaction.guild.members,
-            ),
+            "Please confirm that you want to purge all non-members from the server.",
+            view=view,
+        )
+
+        await view.wait()
+
+        total_member_count = interaction.guild.member_count or len(
+            interaction.guild.members,
+        )
+
+        cancel_progress_view = UnconfirmedCleanupCancel(interaction.user)
+        chunk_size = 100
+        members_processed = 0
+        members_failed: list[Member] = []
+        lock = asyncio.Lock()
+
+        cancel_event = cancel_progress_view.get_cancel_event()
+        end_progress_event = asyncio.Event()
+
+        async def progress_updater(end_signal: asyncio.Event):
+            while not end_signal.is_set():
+                async with lock:
+                    progress_message = "{} {}/~{} users processed".format(
+                        EMOJI_LOADING,
+                        members_processed,
+                        total_member_count,
+                    )
+                    for failed_member in members_failed:
+                        progress_message += f"\n{failed_member.mention}"
+                    final_message = asyncio.create_task(
+                        interaction.edit_original_response(
+                            content=progress_message,
+                            allowed_mentions=AllowedMentions.none(),
+                            view=cancel_progress_view,
+                        ),
+                    )
+                await asyncio.sleep(DISCORD_LONG_TERM_RATE_LIMIT)
+
+            if final_message:
+                await final_message
+
+        ui_updater = asyncio.create_task(progress_updater(end_progress_event))
+
+        def member_predicate(member: discord.Member) -> bool:
+            return not member.bot and member_role not in member.roles
+
+        for member_chunk in discord.utils.as_chunks(
+            interaction.guild.members,
+            chunk_size,
+        ):
+            failed_members: list[Member] = []
+            extra_processed = None
+            for i, member in enumerate(member_chunk):
+                if cancel_event.is_set():
+                    extra_processed = i
+                    break
+                if not member_predicate(member):
+                    continue
+                try:
+                    # We cannot send a message to the user after they are
+                    # kicked, so we must send one first before we call
+                    # kick()
+                    await member.send(
+                        (
+                            "Notice from the Scioly.org server: You were kicked "
+                            "from the Scioly.org server since you did not "
+                            "fill out the onboarding survey fully. You are "
+                            "free to rejoin the server at your earliest "
+                            "convenience (https://discord.gg/{})"
+                        ).format(
+                            DISCORD_DEFAULT_INVITE_ENDING,
+                        ),
+                    )
+                except HTTPException as e:
+                    logging.warning(
+                        "{}: Could not send message notify user @{}: {}",
+                        interaction.command.qualified_name,
+                        member.name,
+                        e,
+                    )
+                try:
+                    await member.kick(
+                        reason="Server cleanup - Did not fill out onboarding survey",
+                    )
+                except HTTPException as e:
+                    logging.error(
+                        "{}: Failed to kick user @{}: {}",
+                        interaction.command.qualified_name,
+                        member.name,
+                        e,
+                    )
+                    failed_members.append(member)
+                await asyncio.sleep(DISCORD_LONG_TERM_RATE_LIMIT)
+
+            async with lock:
+                members_processed += (
+                    extra_processed if extra_processed else len(member_chunk)
+                )
+                members_failed.extend(failed_members)
+            if cancel_event.is_set():
+                break
+
+        end_progress_event.set()
+        await ui_updater
+
+        users_without_member_role = sum(
+            [
+                1
+                async for member in interaction.guild.fetch_members(limit=None)
+                if member_predicate(member)
+            ],
+        )
+
+        progress_message = "Operation completed"
+        if cancel_event.is_set():
+            progress_message = "Cancelled by initiator"
+        progress_message += f"\nProcessed {members_processed} members"
+        if members_failed:
+            progress_message += "\nFailed to process the following members:"
+        for failed_member in members_failed:
+            progress_message += f"\n- {failed_member.mention}"
+        if users_without_member_role > 0:
+            progress_message += (
+                "\nThere exist {} user(s) that does not have the {} role".format(
+                    users_without_member_role,
+                    member_role.name,
+                )
+            )
+
+        return await interaction.edit_original_response(
+            content=progress_message,
+            allowed_mentions=AllowedMentions.none(),
+            view=None,
         )
 
 
