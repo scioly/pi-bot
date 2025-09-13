@@ -120,6 +120,7 @@ class UserCleanup(commands.Cog):
         cancel_progress_view = UnconfirmedCleanupCancel(interaction.user)
         chunk_size = 100
         members_processed = 0
+        members_kicked = 0
         members_failed: list[Member] = []
         lock = asyncio.Lock()
 
@@ -129,10 +130,14 @@ class UserCleanup(commands.Cog):
         async def progress_updater(end_signal: asyncio.Event):
             while not end_signal.is_set():
                 async with lock:
-                    progress_message = "{} {}/~{} users processed".format(
-                        EMOJI_LOADING,
-                        members_processed,
-                        total_member_count,
+                    progress_message = (
+                        "{} {}/~{} users processed\n{}/{} users kicked".format(
+                            EMOJI_LOADING,
+                            members_processed,
+                            total_member_count,
+                            members_kicked,
+                            members_processed,
+                        )
                     )
                     for failed_member in members_failed:
                         progress_message += f"\n{failed_member.mention}"
@@ -159,6 +164,7 @@ class UserCleanup(commands.Cog):
         ):
             failed_members: list[Member] = []
             extra_processed = None
+            kicked_count = 0
             for i, member in enumerate(member_chunk):
                 if cancel_event.is_set():
                     extra_processed = i
@@ -191,6 +197,7 @@ class UserCleanup(commands.Cog):
                     await member.kick(
                         reason="Server cleanup - Did not fill out onboarding survey",
                     )
+                    kicked_count += 1
                 except HTTPException as e:
                     logging.error(
                         "{}: Failed to kick user @{}: {}",
@@ -205,6 +212,7 @@ class UserCleanup(commands.Cog):
                 members_processed += (
                     extra_processed if extra_processed else len(member_chunk)
                 )
+                members_kicked += kicked_count
                 members_failed.extend(failed_members)
             if cancel_event.is_set():
                 break
@@ -224,6 +232,7 @@ class UserCleanup(commands.Cog):
         if cancel_event.is_set():
             progress_message = "Cancelled by initiator"
         progress_message += f"\nProcessed {members_processed} members"
+        progress_message += f"\nKicked {members_kicked} members"
         if members_failed:
             progress_message += "\nFailed to process the following members:"
         for failed_member in members_failed:
