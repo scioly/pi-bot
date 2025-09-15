@@ -190,6 +190,7 @@ class PiBot(commands.Bot):
                 src.mongo.models.Event,
                 src.mongo.models.Censor,
                 src.mongo.models.Settings,
+                src.mongo.models.UserRoles,
                 # TODO
             ],
         )
@@ -210,6 +211,7 @@ class PiBot(commands.Bot):
             "src.discord.spam",
             "src.discord.reporter",
             "src.discord.logger",
+            "src.discord.rolerestore",
         )
         for i, extension in enumerate(extensions):
             try:
