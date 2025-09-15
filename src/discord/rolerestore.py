@@ -7,6 +7,7 @@ import discord
 from beanie.odm.operators.update.general import Set
 from discord import Member, RawMemberRemoveEvent
 from discord.ext import commands
+from motor.core import ClientSession
 
 from src.discord.globals import (
     ROLE_EM,
@@ -49,31 +50,15 @@ class RoleRestore(commands.Cog):
             # the payload type .user can be User | Member, but this should only be called when the member leaves a Guild??
             return
 
-        roles_to_save = [
-            role.name for role in payload.user.roles if role.name in NON_PUBLIC_ROLES
-        ]
-
-        await UserRoles.find_one(
-            UserRoles.user_id == payload.user.id,
-            UserRoles.guild_id == payload.guild_id,
-        ).upsert(
-            Set({UserRoles.roles: roles_to_save}),
-            on_insert=UserRoles(
-                user_id=payload.user.id,
-                guild_id=payload.guild_id,
-                roles=roles_to_save,
-            ),
-        )
-
         logging.info(
-            "%d roles were saved for `%s` (id: %d)",
-            len(roles_to_save),
+            "Syncing roles for `%s` (triggered by on_raw_member_remove)",
             payload.user.name,
-            payload.user.id,
         )
+        await sync_roles(payload.user, None)
 
     @commands.Cog.listener()
     async def on_member_join(self, member: Member):
+        logging.info("Restoring roles for user `%s`", member.name)
         user_roles = await UserRoles.find_one(
             UserRoles.user_id == member.id,
             UserRoles.guild_id == member.guild.id,
@@ -89,6 +74,41 @@ class RoleRestore(commands.Cog):
                 *roles_to_add,
                 reason="Existing user rejoined. Restoring non-public roles.",
             )
+            logging.info("Finish restoring roles for `%s`", member.name)
+        else:
+            logging.info(
+                "RoleRestore could not find existing entry for `%s` for restoration",
+                member.name,
+            )
+
+    @commands.Cog.listener()
+    async def on_member_update(self, _: Member, after: Member):
+        logging.info("Updating roles for user `%s`", after.name)
+        # TODO: add logic to prevent unnecessary syncs
+        await sync_roles(after, None)
+
+
+async def sync_roles(member: Member, session: ClientSession | None):
+    roles = [role.name for role in member.roles if role.name in NON_PUBLIC_ROLES]
+
+    await UserRoles.find_one(
+        UserRoles.user_id == member.id,
+        UserRoles.guild_id == member.guild.id,
+        session=session,
+    ).upsert(
+        Set({UserRoles.roles: roles}),
+        on_insert=UserRoles(user_id=member.id, guild_id=member.guild.id, roles=roles),
+        session=session,
+    )
+
+    logging.info(
+        "%d roles were saved for `%s` (id: %d)",
+        len(roles),
+        member.name,
+        member.id,
+    )
+
+    return roles
 
 
 async def setup(bot: PiBot):
