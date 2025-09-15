@@ -5,10 +5,11 @@ from typing import TYPE_CHECKING
 
 import discord
 from beanie.odm.operators.update.general import Set
-from discord import Member, RawMemberRemoveEvent
+from discord import AllowedMentions, Member, RawMemberRemoveEvent, app_commands
 from discord.ext import commands
 from motor.core import ClientSession
 
+from env import env
 from src.discord.globals import (
     ROLE_EM,
     ROLE_LH,
@@ -42,6 +43,37 @@ class RoleRestore(commands.Cog):
 
     def __init__(self, bot: PiBot):
         self.bot = bot
+
+    rolerestore_group = app_commands.Group(
+        name="rolerestore",
+        description="Commands pertaining to RoleRestore.",
+        guild_ids=env.slash_command_guilds,
+        default_permissions=discord.Permissions(manage_roles=True),
+    )
+
+    @rolerestore_group.command(
+        name="sync",
+        description="Staff command. Syncs Pi-Bot's backend with the current state of a user's non-public roles.",
+    )
+    @app_commands.checks.has_any_role(ROLE_STAFF, ROLE_VIP)
+    @app_commands.describe(
+        member="Sync a particular user rather than the entire server.",
+    )
+    async def sync(self, interaction: discord.Interaction, member: Member):
+        logging.info("Manually syncing roles for user `%s`", member.name)
+        await interaction.response.send_message(
+            f"Syncing roles for {member.mention}",
+            allowed_mentions=AllowedMentions.none(),
+        )
+        roles = await sync_roles(member, None)
+
+        roles_markdown = [f"`{discord.utils.escape_markdown(role)}`" for role in roles]
+        roles_str = ", ".join(roles_markdown)
+        await interaction.edit_original_response(
+            content=f"The following roles were synced: {roles_str}",
+            allowed_mentions=AllowedMentions.none(),
+        )
+        return
 
     @commands.Cog.listener()
     async def on_raw_member_remove(self, payload: RawMemberRemoveEvent):
