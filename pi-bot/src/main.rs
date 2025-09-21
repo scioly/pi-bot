@@ -40,7 +40,7 @@ async fn main() {
     let framework = poise::Framework::builder()
         .options(poise::FrameworkOptions {
             prefix_options: poise::PrefixFrameworkOptions {
-                prefix: Some("!".to_string()),
+                prefix: Some("!".into()),
                 ..Default::default()
             },
             commands: all_commands(),
