@@ -1,9 +1,8 @@
-[package]
-name = "pi-bot"
-version = "0.1.0"
-edition = "2024"
+[workspace]
+resolver = "3"
+members = ["pi-bot"]
 
-[dependencies]
+[workspace.dependencies]
 dotenv = "0.15.0"
 envy = "0.4.2"
 log = { version = "0.4.27", features = ["max_level_debug", "release_max_level_info"] }

@@ -1,0 +1,16 @@
+[package]
+name = "pi-bot"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+dotenv = { workspace = true }
+envy = { workspace = true }
+log = { workspace = true, features = ["max_level_debug", "release_max_level_info"] }
+poise = { workspace = true }
+poise_macros = { workspace = true }
+serde = { workspace = true, features = ["derive"] }
+serenity = { workspace = true, branch = "next", version = "0.12.4" }
+simple_logger = { workspace = true }
+sqlx = { workspace = true, features = ["mysql", "runtime-tokio"] }
+tokio = { workspace = true, features = ["rt-multi-thread"] }
