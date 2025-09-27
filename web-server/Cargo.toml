@@ -1,0 +1,15 @@
+[package]
+name = "web-server"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+actix-web = "4.11.0"
+dotenv = { workspace = true }
+env_logger = "0.11.8"
+envy = { workspace = true }
+log = { workspace = true }
+reqwest = { version = "0.12.23", features = ["json"] }
+serde = { workspace = true, features = ["derive"] }
+sqlx = { workspace = true, features = ["mysql", "runtime-tokio"] }
+tokio = { workspace = true, features = ["rt-multi-thread"] }

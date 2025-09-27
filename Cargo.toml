@@ -1,6 +1,6 @@
 [workspace]
 resolver = "3"
-members = ["pi-bot"]
+members = ["pi-bot", "web-server"]
 
 [workspace.dependencies]
 dotenv = "0.15.0"
