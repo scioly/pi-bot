@@ -2,7 +2,10 @@ use std::ops::DerefMut;
 
 use poise::{
     CreateReply,
-    serenity_prelude::{CreateEmbed, UserId},
+    serenity_prelude::{
+        CreateAllowedMentions, CreateEmbed, CreateEmbedFooter, Member, Mentionable, Timestamp,
+        UserId,
+    },
 };
 use sqlx::{MySql, Transaction};
 
@@ -75,5 +78,84 @@ pub async fn auth(ctx: Context<'_>) -> Result<(), Error> {
         ));
     let message = CreateReply::new().embed(embed).ephemeral(true);
     ctx.send(message).await?;
+    Ok(())
+}
+
+#[derive(Debug)]
+struct UserStats {
+    phpbb_user_id: u32,
+    phpbb_username: String,
+    forums_avatar: Option<String>,
+    forums_post_count: u32,
+    forums_thanks_received: u32,
+    forums_thanks_given: u32,
+    wiki_edit_count: u32,
+    updated_at: Timestamp,
+}
+
+#[poise::command(
+    slash_command,
+    required_permissions = "MODERATE_MEMBERS | KICK_MEMBERS | BAN_MEMBERS"
+)]
+pub async fn whois(ctx: Context<'_>, member: Member) -> Result<(), Error> {
+    let mut tx = ctx.data().db.begin().await?;
+    let stats = sqlx::query_as!(
+        UserStats,
+        "SELECT
+            phpbb_user_id,
+            username as phpbb_username,
+            forums_avatar,
+            forums_post_count,
+            forums_thanks_received,
+            forums_thanks_given,
+            wiki_edit_count,
+            updated_at
+        FROM scioly_user_stats WHERE discord_user_id = ?",
+        member.user.id.get()
+    )
+    .fetch_one(&mut *tx)
+    .await?;
+
+    // TODO: If updated_at is 1-5 min out of date, then refetch whoami data.
+
+    let mut embed = CreateEmbed::new()
+        .title(format!("User Stats for {}", member.user.display_name()))
+        .field(
+            "Discord Username",
+            format!("{} `{}`", member.user.mention(), member.user.name),
+            true,
+        )
+        .field("Discord ID", member.user.id.to_string(), true)
+        .field("\u{200B}", "\u{200B}", true)
+        .field("Scioly.org Username", stats.phpbb_username, true)
+        .field("Scioly.org User ID", stats.phpbb_user_id.to_string(), true)
+        .field("\u{200B}", "\u{200B}", true)
+        .field(
+            "Forums Post Count",
+            stats.forums_post_count.to_string(),
+            false,
+        )
+        .field(
+            "Forums Thanks Given",
+            stats.forums_thanks_given.to_string(),
+            true,
+        )
+        .field(
+            "Forums Post Count",
+            stats.forums_thanks_received.to_string(),
+            true,
+        )
+        .field("Wiki Edit Count", stats.wiki_edit_count.to_string(), true)
+        .footer(CreateEmbedFooter::new("Last updated"))
+        .timestamp(stats.updated_at);
+    if let Some(url) = stats.forums_avatar {
+        embed = embed.image(url);
+    }
+    ctx.send(
+        CreateReply::default()
+            .embed(embed)
+            .allowed_mentions(CreateAllowedMentions::default().empty_users().empty_roles()),
+    )
+    .await?;
     Ok(())
 }

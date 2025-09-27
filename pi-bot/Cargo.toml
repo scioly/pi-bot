@@ -12,5 +12,5 @@ poise_macros = { workspace = true }
 serde = { workspace = true, features = ["derive"] }
 serenity = { workspace = true, features = ["builder"] }
 simple_logger = { workspace = true }
-sqlx = { workspace = true, features = ["mysql", "runtime-tokio"] }
+sqlx = { workspace = true, features = ["chrono", "mysql", "runtime-tokio"] }
 tokio = { workspace = true, features = ["rt-multi-thread"] }
