@@ -1,5 +1,7 @@
+use common::{
+    OAUTH_HOST_URL, fetch_new_token, fetch_whoami, update_db_access_token, update_db_user_stats,
+};
 use log::info;
-use std::collections::HashMap;
 
 use actix_web::{
     App, HttpResponse, HttpServer,
@@ -11,15 +13,13 @@ use actix_web::{
 };
 
 use dotenv::dotenv;
-use serde::{Deserialize, Serialize};
+use serde::Deserialize;
 use sqlx::MySqlPool;
 
 #[derive(Debug, Clone, Deserialize)]
 struct Env {
     database_url: String,
 }
-
-const OAUTH_HOST_URL: &str = "http://192.168.42.192";
 
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
@@ -67,56 +67,6 @@ struct AuthRow {
     has_expired: i32,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
-struct AccessTokenResponse {
-    #[serde(rename = "phpBBUserId")]
-    phpbb_user_id: i32,
-    access_token: String,
-    refresh_token: String,
-    expires_at: u64,
-}
-
-#[derive(Debug, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
-struct ForumsSubResponse {
-    user_avatar: Option<String>,
-    post_count: u32,
-    thanks_received: u32,
-    thanks_given: u32,
-}
-
-#[derive(Debug, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
-struct WikiSubResponse {
-    edit_count: u32,
-}
-
-#[derive(Debug, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
-struct TestExchangeSubResponse {
-    upload_count: Option<u32>,
-}
-
-#[derive(Debug, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
-struct GallerySubResponse {
-    score: Option<u32>,
-    post_count: u32,
-}
-
-#[derive(Debug, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
-struct WhoAmIResponse {
-    #[serde(rename = "userId")]
-    phpbb_user_id: i32,
-    username: String,
-    forums: ForumsSubResponse,
-    wiki: WikiSubResponse,
-    test_exchange: TestExchangeSubResponse,
-    gallery: GallerySubResponse,
-}
-
 #[get("/authorize")]
 async fn authorize(
     data: web::Data<ServerState>,
@@ -154,143 +104,54 @@ async fn authorize(
     }
 
     let client = reqwest::Client::new();
-    let formdata = HashMap::from([
-        ("grant_type", "authorization_code".into()),
-        ("code", query.code_hex.clone()),
-        // TODO: turn these into env vars
-        ("client_id", "abcdef1234567890".into()),
-        ("client_secret", "abcdef1234567890".into()),
-    ]);
-    let oauth_res = client
-        .post(format!("{}/oauth/access_token/", OAUTH_HOST_URL))
-        .form(&formdata)
-        .send()
-        .await
-        .map_err(|err| {
+    // TODO: turn client_id and client_secret into env vars
+    let body_res = fetch_new_token(
+        &client,
+        &query.code_hex,
+        "abcdef1234567890",
+        "abcdef1234567890",
+    )
+    .await
+    .map_err(|err| match err {
+        common::AccessTokenError::StatusCodeError { expected: _, found } => match found {
+            reqwest::StatusCode::NOT_FOUND => ErrorNotFound("authorization code not found"),
+            _ => {
+                info!("{}/oauth/access_token/: {}", OAUTH_HOST_URL, err);
+                ErrorInternalServerError("error contacting scioly.org")
+            }
+        },
+        _ => {
             info!("{}/oauth/access_token/: {}", OAUTH_HOST_URL, err);
             ErrorInternalServerError(err)
-        })?;
-    let status_code = oauth_res.status().as_u16();
-    let actix_status_code = actix_web::http::StatusCode::from_u16(status_code) // disgusting
-        .unwrap_or(actix_web::http::StatusCode::INTERNAL_SERVER_ERROR);
-    match actix_status_code {
-        actix_web::http::StatusCode::OK => {}
-        code if code == actix_web::http::StatusCode::BAD_REQUEST.as_u16()
-            || code == actix_web::http::StatusCode::INTERNAL_SERVER_ERROR.as_u16()
-            || code == actix_web::http::StatusCode::NOT_FOUND.as_u16() =>
-        {
-            return Ok(HttpResponse::new(code));
         }
-        _ => {
-            return Ok(HttpResponse::new(
-                actix_web::http::StatusCode::INTERNAL_SERVER_ERROR,
-            ));
-        }
-    }
+    })?;
 
-    let body_res = oauth_res
-        .json::<AccessTokenResponse>()
+    update_db_access_token(&mut tx, row.discord_user_id, &body_res)
         .await
         .map_err(|err| {
-            info!("{}/oauth/access_token/{}", OAUTH_HOST_URL, err);
+            info!(
+                "{}/oauth/access_token/: error on db update {}",
+                OAUTH_HOST_URL, err
+            );
             ErrorInternalServerError(err)
         })?;
 
-    sqlx::query!(
-        "DELETE FROM scioly_tokens WHERE discord_user_id = ?",
-        row.discord_user_id,
-    )
-    .execute(&mut *tx)
-    .await
-    .map_err(|err| {
-        info!("{}", err);
-        ErrorInternalServerError(err)
-    })?;
-
-    let whoami_res = client
-        .get(format!("{}/oauth/api/whoami/", OAUTH_HOST_URL))
-        .header("Authorization", format!("Bearer {}", body_res.access_token))
-        .send()
+    let whoami = fetch_whoami(&client, &body_res.access_token)
         .await
         .map_err(|err| {
-            info!("{}", err);
+            info!("{}/oauth/api/whoami/: {}", OAUTH_HOST_URL, err);
             ErrorInternalServerError(err)
         })?;
-    if whoami_res.status() != reqwest::StatusCode::OK {
-        return Ok(HttpResponse::new(
-            actix_web::http::StatusCode::INTERNAL_SERVER_ERROR,
-        ));
-    }
-    let whoami = whoami_res.json::<WhoAmIResponse>().await.map_err(|err| {
-        info!("{}", err);
-        ErrorInternalServerError(err)
-    })?;
 
-    sqlx::query!(
-        "INSERT INTO scioly_tokens (discord_user_id, phpbb_user_id, access_token, refresh_token, access_expires_at) VALUES (?, ?, UNHEX(?), UNHEX(?), FROM_UNIXTIME(?))",
-        row.discord_user_id,
-        body_res.phpbb_user_id,
-        body_res.access_token,
-        body_res.refresh_token,
-        body_res.expires_at
-    ).execute(&mut *tx).await.map_err(ErrorInternalServerError)?;
-
-    sqlx::query!(
-        "INSERT INTO scioly_user_stats (
-            discord_user_id,
-            phpbb_user_id,
-            username,
-            forums_avatar,
-            forums_post_count,
-            forums_thanks_received,
-            forums_thanks_given,
-            wiki_edit_count,
-            test_ex_upload_count,
-            gallery_score,
-            gallery_post_count) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-            ON DUPLICATE KEY UPDATE
-            discord_user_id = ?,
-            phpbb_user_id = ?,
-            username = ?,
-            forums_avatar = ?,
-            forums_post_count = ?,
-            forums_thanks_received = ?,
-            forums_thanks_given = ?,
-            wiki_edit_count = ?,
-            test_ex_upload_count = ?,
-            gallery_score = ?,
-            gallery_post_count = ?",
-        // on insert
-        row.discord_user_id,
-        whoami.phpbb_user_id,
-        whoami.username,
-        whoami.forums.user_avatar,
-        whoami.forums.post_count,
-        whoami.forums.thanks_received,
-        whoami.forums.thanks_given,
-        whoami.wiki.edit_count,
-        whoami.test_exchange.upload_count.unwrap_or(0),
-        whoami.gallery.score.unwrap_or(0),
-        whoami.gallery.post_count,
-        // on update
-        row.discord_user_id,
-        whoami.phpbb_user_id,
-        whoami.username,
-        whoami.forums.user_avatar,
-        whoami.forums.post_count,
-        whoami.forums.thanks_received,
-        whoami.forums.thanks_given,
-        whoami.wiki.edit_count,
-        whoami.test_exchange.upload_count.unwrap_or(0),
-        whoami.gallery.score.unwrap_or(0),
-        whoami.gallery.post_count,
-    )
-    .execute(&mut *tx)
-    .await
-    .map_err(|err| {
-        info!("{}", err);
-        ErrorInternalServerError(err)
-    })?;
+    update_db_user_stats(&mut *tx, &whoami, row.discord_user_id)
+        .await
+        .map_err(|err| {
+            info!(
+                "{}/oauth/whoami/: error on db update {}",
+                OAUTH_HOST_URL, err
+            );
+            ErrorInternalServerError(err)
+        })?;
 
     tx.commit().await.map_err(|err| {
         info!("{}", err);

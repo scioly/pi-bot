@@ -1,5 +1,6 @@
 use std::ops::DerefMut;
 
+use common::{fetch_whoami, refresh_access_token, update_db_access_token, update_db_user_stats};
 use poise::{
     CreateReply,
     serenity_prelude::{
@@ -7,9 +8,15 @@ use poise::{
         UserId,
     },
 };
+use reqwest;
 use sqlx::{MySql, Transaction};
 
 use crate::discord::{Context, Error};
+use chrono;
+
+// TODO: turn client_id and client_secret into env var
+const OAUTH_CLIENT_ID: &str = "abcdef1234567890";
+const OAUTH_CLIENT_SECRET: &str = "abcdef1234567890";
 
 struct AuthRequest {
     state_code: String,
@@ -64,10 +71,9 @@ pub async fn auth(ctx: Context<'_>) -> Result<(), Error> {
 
     tx.commit().await?;
 
-    let client_id = "abcdef1234567890";
     let url = format!(
-        "http://192.168.42.192/oauth/authorize?response_type=code&state={}&client_id={}",
-        code, client_id
+        "https://scioly.org/oauth/authorize?response_type=code&state={}&client_id={}",
+        code, OAUTH_CLIENT_ID
     );
 
     let embed = CreateEmbed::new()
@@ -98,8 +104,9 @@ struct UserStats {
     required_permissions = "MODERATE_MEMBERS | KICK_MEMBERS | BAN_MEMBERS"
 )]
 pub async fn whois(ctx: Context<'_>, member: Member) -> Result<(), Error> {
+    let discord_user_id = member.user.id.get();
     let mut tx = ctx.data().db.begin().await?;
-    let stats = sqlx::query_as!(
+    let mut stats = sqlx::query_as!(
         UserStats,
         "SELECT
             phpbb_user_id,
@@ -111,12 +118,45 @@ pub async fn whois(ctx: Context<'_>, member: Member) -> Result<(), Error> {
             wiki_edit_count,
             updated_at
         FROM scioly_user_stats WHERE discord_user_id = ?",
-        member.user.id.get()
+        discord_user_id,
     )
     .fetch_one(&mut *tx)
     .await?;
 
-    // TODO: If updated_at is 1-5 min out of date, then refetch whoami data.
+    const MINUTE_DELTA_TIL_REFETCH: i64 = 1;
+    if stats.updated_at
+        <= (chrono::offset::Utc::now() + chrono::TimeDelta::minutes(MINUTE_DELTA_TIL_REFETCH))
+            .into()
+    {
+        let token_pair = sqlx::query!(r#"SELECT HEX(access_token) AS "access_token!", HEX(refresh_token) AS "refresh_token!", CAST(NOW() >= access_expires_at AS UNSIGNED INT) as has_expired FROM scioly_tokens WHERE discord_user_id = ?"#, discord_user_id).fetch_one(&mut *tx).await?;
+        let client = reqwest::Client::new();
+        let mut access_token = token_pair.access_token;
+        if token_pair.has_expired != 0 {
+            // refresh the access token
+            let new_pair = refresh_access_token(
+                &client,
+                &token_pair.refresh_token,
+                OAUTH_CLIENT_ID,
+                OAUTH_CLIENT_SECRET,
+            )
+            .await?;
+            update_db_access_token(&mut tx, discord_user_id, &new_pair).await?;
+            access_token = new_pair.access_token;
+        }
+        let whoami = fetch_whoami(&client, &access_token).await?;
+        update_db_user_stats(&mut *tx, &whoami, discord_user_id).await?;
+        stats = UserStats {
+            phpbb_user_id: whoami.phpbb_user_id,
+            phpbb_username: whoami.username,
+            forums_avatar: whoami.forums.user_avatar,
+            forums_post_count: whoami.forums.post_count,
+            forums_thanks_received: whoami.forums.thanks_received,
+            forums_thanks_given: whoami.forums.thanks_given,
+            wiki_edit_count: whoami.wiki.edit_count,
+            updated_at: Timestamp::now(),
+        }
+    }
+    tx.commit().await?;
 
     let mut embed = CreateEmbed::new()
         .title(format!("User Stats for {}", member.user.display_name()))
