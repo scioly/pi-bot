@@ -1,0 +1,12 @@
+{
+  "db_name": "MySQL",
+  "query": "DELETE FROM authorization_request WHERE discord_user_id = ?",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": []
+  },
+  "hash": "b4130cccfcd81efa3433f55d19b71de44344bb8416cf18d79fe3f90924e28f18"
+}

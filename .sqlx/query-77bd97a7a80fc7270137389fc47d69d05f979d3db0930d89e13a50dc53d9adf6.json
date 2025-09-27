@@ -1,0 +1,12 @@
+{
+  "db_name": "MySQL",
+  "query": "DELETE FROM authorization_request WHERE id = ?",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": []
+  },
+  "hash": "77bd97a7a80fc7270137389fc47d69d05f979d3db0930d89e13a50dc53d9adf6"
+}

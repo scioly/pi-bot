@@ -1,0 +1,12 @@
+{
+  "db_name": "MySQL",
+  "query": "INSERT INTO scioly_tokens (discord_user_id, phpbb_user_id, access_token, refresh_token, access_expires_at) VALUES (?, ?, UNHEX(?), UNHEX(?), FROM_UNIXTIME(?))",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 5
+    },
+    "nullable": []
+  },
+  "hash": "621d339a6b8b22110c93ca8842f992e0928b370914ffa207a8c51c2d88ba3a56"
+}

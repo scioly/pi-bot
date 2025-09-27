@@ -1,0 +1,12 @@
+{
+  "db_name": "MySQL",
+  "query": "INSERT INTO authorization_request (discord_user_id, state_code) VALUES (?, RANDOM_BYTES(255))",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": []
+  },
+  "hash": "73b2578eb42aa05606e7e7b75a83db97b64c7a32505c7101c743707512d59e64"
+}

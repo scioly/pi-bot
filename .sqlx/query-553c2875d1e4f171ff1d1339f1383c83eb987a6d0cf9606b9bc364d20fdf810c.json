@@ -1,0 +1,12 @@
+{
+  "db_name": "MySQL",
+  "query": "DELETE FROM scioly_tokens WHERE discord_user_id = ?",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": []
+  },
+  "hash": "553c2875d1e4f171ff1d1339f1383c83eb987a6d0cf9606b9bc364d20fdf810c"
+}

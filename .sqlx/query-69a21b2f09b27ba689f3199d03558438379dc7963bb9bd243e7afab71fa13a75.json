@@ -1,0 +1,34 @@
+{
+  "db_name": "MySQL",
+  "query": "SELECT HEX(state_code) AS \"state_code!\", CAST(NOW() >= expires_at AS UNSIGNED INT) AS has_expired FROM authorization_request WHERE discord_user_id = ?",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "state_code!",
+        "type_info": {
+          "type": "VarString",
+          "flags": "",
+          "max_size": 2040
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "has_expired",
+        "type_info": {
+          "type": "LongLong",
+          "flags": "NOT_NULL | UNSIGNED | BINARY",
+          "max_size": 20
+        }
+      }
+    ],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": [
+      true,
+      false
+    ]
+  },
+  "hash": "69a21b2f09b27ba689f3199d03558438379dc7963bb9bd243e7afab71fa13a75"
+}

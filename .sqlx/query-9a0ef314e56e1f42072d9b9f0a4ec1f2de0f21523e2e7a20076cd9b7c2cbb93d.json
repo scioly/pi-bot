@@ -1,0 +1,44 @@
+{
+  "db_name": "MySQL",
+  "query": "SELECT HEX(access_token) AS \"access_token!\", HEX(refresh_token) AS \"refresh_token!\", CAST(NOW() >= access_expires_at AS UNSIGNED INT) as has_expired FROM scioly_tokens WHERE discord_user_id = ?",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "access_token!",
+        "type_info": {
+          "type": "VarString",
+          "flags": "",
+          "max_size": 2040
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "refresh_token!",
+        "type_info": {
+          "type": "VarString",
+          "flags": "",
+          "max_size": 2040
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "has_expired",
+        "type_info": {
+          "type": "LongLong",
+          "flags": "NOT_NULL | UNSIGNED | BINARY",
+          "max_size": 20
+        }
+      }
+    ],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": [
+      true,
+      true,
+      false
+    ]
+  },
+  "hash": "9a0ef314e56e1f42072d9b9f0a4ec1f2de0f21523e2e7a20076cd9b7c2cbb93d"
+}

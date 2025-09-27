@@ -1,0 +1,12 @@
+{
+  "db_name": "MySQL",
+  "query": "INSERT INTO scioly_user_stats (\n            discord_user_id,\n            phpbb_user_id,\n            username,\n            forums_avatar,\n            forums_post_count,\n            forums_thanks_received,\n            forums_thanks_given,\n            wiki_edit_count,\n            test_ex_upload_count,\n            gallery_score,\n            gallery_post_count) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)\n            ON DUPLICATE KEY UPDATE\n            discord_user_id = ?,\n            phpbb_user_id = ?,\n            username = ?,\n            forums_avatar = ?,\n            forums_post_count = ?,\n            forums_thanks_received = ?,\n            forums_thanks_given = ?,\n            wiki_edit_count = ?,\n            test_ex_upload_count = ?,\n            gallery_score = ?,\n            gallery_post_count = ?",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 22
+    },
+    "nullable": []
+  },
+  "hash": "1f1fa238bd6b29146ffb7cd30453001eca53d0c623008394f9a321ea4e0fc461"
+}

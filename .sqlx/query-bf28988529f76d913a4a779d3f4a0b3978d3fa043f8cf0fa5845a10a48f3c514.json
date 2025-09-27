@@ -1,0 +1,24 @@
+{
+  "db_name": "MySQL",
+  "query": "SELECT HEX(state_code) AS \"state_code!\" FROM authorization_request WHERE id = ?",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "state_code!",
+        "type_info": {
+          "type": "VarString",
+          "flags": "",
+          "max_size": 2040
+        }
+      }
+    ],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": [
+      true
+    ]
+  },
+  "hash": "bf28988529f76d913a4a779d3f4a0b3978d3fa043f8cf0fa5845a10a48f3c514"
+}
