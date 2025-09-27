@@ -1,7 +1,7 @@
 use common::{
     OAUTH_HOST_URL, fetch_new_token, fetch_whoami, update_db_access_token, update_db_user_stats,
 };
-use log::info;
+use log::error;
 
 use actix_web::{
     App, HttpResponse, HttpServer,
@@ -73,7 +73,7 @@ async fn authorize(
     query: web::Query<AuthorizeInputs>,
 ) -> actix_web::Result<HttpResponse> {
     let mut tx = data.db.begin().await.map_err(|err| {
-        info!("{}", err);
+        error!("{}", err);
         ErrorInternalServerError(err)
     })?;
 
@@ -84,7 +84,7 @@ async fn authorize(
     ).fetch_one(&mut *tx).await {
         Err(sqlx::Error::RowNotFound) => { return Err(ErrorNotFound(sqlx::Error::RowNotFound))}
         Err(e) => {
-            info!("{}", e);
+            error!("{}", e);
             return Err(ErrorInternalServerError(e));
         }
         Ok(row) => row,
@@ -93,11 +93,11 @@ async fn authorize(
     let delete_query = sqlx::query!("DELETE FROM authorization_request WHERE id = ?", row.id);
     if row.has_expired != 0 {
         delete_query.execute(&mut *tx).await.map_err(|err| {
-            info!("{}", err);
+            error!("{}", err);
             ErrorInternalServerError(err)
         })?;
         tx.commit().await.map_err(|err| {
-            info!("{}", err);
+            error!("{}", err);
             ErrorInternalServerError(err)
         })?;
         return Ok(HttpResponse::new(actix_web::http::StatusCode::NOT_FOUND));
@@ -116,12 +116,12 @@ async fn authorize(
         common::AccessTokenError::StatusCodeError { expected: _, found } => match found {
             reqwest::StatusCode::NOT_FOUND => ErrorNotFound("authorization code not found"),
             _ => {
-                info!("{}/oauth/access_token/: {}", OAUTH_HOST_URL, err);
+                error!("{}/oauth/access_token/: {}", OAUTH_HOST_URL, err);
                 ErrorInternalServerError("error contacting scioly.org")
             }
         },
         _ => {
-            info!("{}/oauth/access_token/: {}", OAUTH_HOST_URL, err);
+            error!("{}/oauth/access_token/: {}", OAUTH_HOST_URL, err);
             ErrorInternalServerError(err)
         }
     })?;
@@ -129,7 +129,7 @@ async fn authorize(
     update_db_access_token(&mut tx, row.discord_user_id, &body_res)
         .await
         .map_err(|err| {
-            info!(
+            error!(
                 "{}/oauth/access_token/: error on db update {}",
                 OAUTH_HOST_URL, err
             );
@@ -139,14 +139,14 @@ async fn authorize(
     let whoami = fetch_whoami(&client, &body_res.access_token)
         .await
         .map_err(|err| {
-            info!("{}/oauth/api/whoami/: {}", OAUTH_HOST_URL, err);
+            error!("{}/oauth/api/whoami/: {}", OAUTH_HOST_URL, err);
             ErrorInternalServerError(err)
         })?;
 
     update_db_user_stats(&mut *tx, &whoami, row.discord_user_id)
         .await
         .map_err(|err| {
-            info!(
+            error!(
                 "{}/oauth/whoami/: error on db update {}",
                 OAUTH_HOST_URL, err
             );
@@ -154,7 +154,7 @@ async fn authorize(
         })?;
 
     tx.commit().await.map_err(|err| {
-        info!("{}", err);
+        error!("{}", err);
         ErrorInternalServerError(err)
     })?;
 
