@@ -14,10 +14,6 @@ use sqlx::{MySql, Transaction};
 use crate::discord::{Context, Error};
 use chrono;
 
-// TODO: turn client_id and client_secret into env var
-const OAUTH_CLIENT_ID: &str = "abcdef1234567890";
-const OAUTH_CLIENT_SECRET: &str = "abcdef1234567890";
-
 struct AuthRequest {
     state_code: String,
     has_expired: u64,
@@ -73,7 +69,8 @@ pub async fn auth(ctx: Context<'_>) -> Result<(), Error> {
 
     let url = format!(
         "https://scioly.org/oauth/authorize?response_type=code&state={}&client_id={}",
-        code, OAUTH_CLIENT_ID
+        code,
+        ctx.data().env.oauth_client_id,
     );
 
     let embed = CreateEmbed::new()
@@ -136,8 +133,8 @@ pub async fn whois(ctx: Context<'_>, member: Member) -> Result<(), Error> {
             let new_pair = refresh_access_token(
                 &client,
                 &token_pair.refresh_token,
-                OAUTH_CLIENT_ID,
-                OAUTH_CLIENT_SECRET,
+                &ctx.data().env.oauth_client_id,
+                &ctx.data().env.oauth_client_secret,
             )
             .await?;
             update_db_access_token(&mut tx, discord_user_id, &new_pair).await?;

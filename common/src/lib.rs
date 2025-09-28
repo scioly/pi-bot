@@ -5,6 +5,8 @@ use serde::{Deserialize, Serialize};
 use sqlx::{Executor, MySql, Transaction};
 use thiserror::Error;
 
+pub mod env;
+
 pub const OAUTH_HOST_URL: &str = "https://scioly.org";
 
 #[derive(Debug, Serialize, Deserialize)]

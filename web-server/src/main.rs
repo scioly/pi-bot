@@ -1,5 +1,6 @@
 use common::{
-    OAUTH_HOST_URL, fetch_new_token, fetch_whoami, update_db_access_token, update_db_user_stats,
+    OAUTH_HOST_URL, env, fetch_new_token, fetch_whoami, update_db_access_token,
+    update_db_user_stats,
 };
 use log::error;
 
@@ -19,6 +20,8 @@ use sqlx::MySqlPool;
 #[derive(Debug, Clone, Deserialize)]
 struct Env {
     database_url: String,
+    oauth_client_id: String,
+    oauth_client_secret: String,
 }
 
 #[actix_web::main]
@@ -29,15 +32,23 @@ async fn main() -> std::io::Result<()> {
     env_logger::init();
     dotenv().ok();
 
-    let env_config = envy::from_env::<Env>().expect("should parse into expected config struct");
+    let env_config = env::load_env::<Env>().expect("should load and parse expected config struct");
 
     let pool = MySqlPool::connect(&env_config.database_url)
         .await
         .expect("should construct new database pool");
+    // wikiauthbot_server::start(DatabaseConnection::prod().await?)
+    //     .await?
+    //     .await?;
+    // Ok(())
     HttpServer::new(move || {
         let logger = Logger::default();
         App::new()
-            .app_data(web::Data::new(ServerState { db: pool.clone() }))
+            .app_data(web::Data::new(ServerState {
+                db: pool.clone(),
+                oauth_client_id: env_config.oauth_client_id.clone(),
+                oauth_client_secret: env_config.oauth_client_secret.clone(),
+            }))
             .wrap(logger)
             .service(authorize)
             .route("/", web::get().to(HttpResponse::Ok))
@@ -50,6 +61,8 @@ async fn main() -> std::io::Result<()> {
 #[derive(Debug)]
 struct ServerState {
     pub db: MySqlPool,
+    pub oauth_client_id: String,
+    pub oauth_client_secret: String,
 }
 
 #[derive(Debug, Deserialize)]
@@ -104,12 +117,11 @@ async fn authorize(
     }
 
     let client = reqwest::Client::new();
-    // TODO: turn client_id and client_secret into env vars
     let body_res = fetch_new_token(
         &client,
         &query.code_hex,
-        "abcdef1234567890",
-        "abcdef1234567890",
+        &data.oauth_client_id,
+        &data.oauth_client_secret,
     )
     .await
     .map_err(|err| match err {

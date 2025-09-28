@@ -566,6 +566,8 @@ dependencies = [
 name = "common"
 version = "0.1.0"
 dependencies = [
+ "envy",
+ "log",
  "reqwest 0.12.23",
  "serde",
  "sqlx",
@@ -2063,7 +2065,6 @@ dependencies = [
  "chrono",
  "common",
  "dotenv",
- "envy",
  "log",
  "poise",
  "poise_macros 0.6.1 (registry+https://github.com/rust-lang/crates.io-index)",
