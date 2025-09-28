@@ -147,7 +147,7 @@ async fn authorize(
         .await
         .map_err(|err| {
             error!(
-                "{}/oauth/whoami/: error on db update {}",
+                "{}/oauth/api/whoami/: error on db update {}",
                 OAUTH_HOST_URL, err
             );
             ErrorInternalServerError(err)
