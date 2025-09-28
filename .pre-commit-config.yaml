@@ -1,7 +1,4 @@
 ---
-default_language_version:
-  python: python3.10
-
 repos:
   - repo: https://github.com/adrienverge/yamllint.git
     rev: v1.33.0
@@ -24,7 +21,7 @@ repos:
           - --quiet-level=2
         exclude_types: [csv, json]
   - repo: https://github.com/hadolint/hadolint
-    rev: v2.12.1-beta
+    rev: v2.14.0
     hooks:
       - id: hadolint
   - repo: https://github.com/pre-commit/pre-commit-hooks
@@ -42,4 +39,4 @@ repos:
       - id: trailing-whitespace
       - id: no-commit-to-branch
         args:
-          - --branch=master
+          - --branch=main
