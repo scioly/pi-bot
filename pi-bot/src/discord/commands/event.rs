@@ -2,6 +2,7 @@ use std::ops::Deref;
 
 use poise::CreateReply;
 use poise::serenity_prelude::{EditRole, Guild};
+use sqlx::{Executor, MySql};
 
 use crate::discord::utils::{EMOJI_LOADING, is_staff};
 use crate::discord::{Context, Error};
@@ -38,7 +39,7 @@ pub async fn event(_: Context<'_>) -> Result<(), Error> {
 }
 
 /// Batch operation commands that update the bot's list of events.
-#[poise::command(slash_command, /* TODO: subcommands() */)]
+#[poise::command(slash_command, subcommands("batch_role"))]
 pub async fn batch(_: Context<'_>) -> Result<(), Error> {
     Ok(())
 }
@@ -63,14 +64,8 @@ pub async fn add(
         .await?;
 
     let mut tx = ctx.data().db.begin().await?;
-    let event_count = sqlx::query!(
-        "SELECT COUNT(*) as count FROM event WHERE name = ?",
-        event_name
-    )
-    .fetch_one(&mut *tx)
-    .await?;
 
-    if event_count.count != 0 {
+    if check_event_exist(&mut *tx, &event_name).await? {
         // reply_message
         //     .edit(
         //         ctx,
@@ -139,8 +134,19 @@ pub async fn add(
 
 /// Add or remove an event's role.
 #[poise::command(slash_command, check = "is_staff")]
-pub async fn role(ctx: Context<'_>, mode: EnableDisable, event_name: String) -> Result<(), Error> {
+pub async fn role(
+    ctx: Context<'_>,
+    #[description = "Whether to enable or disable the event role."] mode: EnableDisable,
+    #[description = "The name of the event."] event_name: String,
+) -> Result<(), Error> {
     let guild = ctx.guild().unwrap().deref().clone();
+
+    if !check_event_exist(&ctx.data().db, &event_name).await? {
+        ctx.reply(format!("`{}` is not an event!", event_name))
+            .await?;
+        return Ok(());
+    }
+
     match mode {
         EnableDisable::Enable => {
             let reply_message = ctx
@@ -149,28 +155,13 @@ pub async fn role(ctx: Context<'_>, mode: EnableDisable, event_name: String) -> 
                     EMOJI_LOADING, event_name
                 ))
                 .await?;
-            match enable_event_role(&ctx, &guild, &event_name).await? {
-                EnableRoleResponse::RoleCreated => {
-                    reply_message
-                        .edit(
-                            ctx,
-                            CreateReply::default()
-                                .content(format!("Role for `{}` has been added.", event_name)),
-                        )
-                        .await?;
-                }
-                EnableRoleResponse::RoleAlreadyEnabled => {
-                    reply_message
-                        .edit(
-                            ctx,
-                            CreateReply::default().content(format!(
-                                "Role for `{}` has already been added.",
-                                event_name
-                            )),
-                        )
-                        .await?;
-                }
-            }
+            let status = enable_event_role(&ctx, &guild, &event_name).await?;
+            reply_message
+                .edit(
+                    ctx,
+                    CreateReply::default().content(role_enable_message(&status, &event_name)),
+                )
+                .await?;
         }
         EnableDisable::Disable => {
             let reply_message = ctx
@@ -179,31 +170,82 @@ pub async fn role(ctx: Context<'_>, mode: EnableDisable, event_name: String) -> 
                     EMOJI_LOADING, event_name
                 ))
                 .await?;
-            match disable_event_role(&ctx, &guild, &event_name).await? {
-                DisableRoleResponse::RoleRemoved => {
-                    reply_message
-                        .edit(
-                            ctx,
-                            CreateReply::default()
-                                .content(format!("Role for `{}` has been deleted.", event_name)),
-                        )
-                        .await?;
-                }
-                DisableRoleResponse::RoleAlreadyDisabled => {
-                    reply_message
-                        .edit(
-                            ctx,
-                            CreateReply::default().content(format!(
-                                "Role for `{}` has already been deleted.",
-                                event_name
-                            )),
-                        )
-                        .await?;
-                }
+            let status = disable_event_role(&ctx, &guild, &event_name).await?;
+            reply_message
+                .edit(
+                    ctx,
+                    CreateReply::default().content(role_disable_message(&status, &event_name)),
+                )
+                .await?;
+        }
+    }
+    Ok(())
+}
+
+/// Add or remove multiple events' role.
+#[poise::command(slash_command, rename = "role", check = "is_staff")]
+pub async fn batch_role(
+    ctx: Context<'_>,
+    #[description = "Whether to enable or disable the event roles."] mode: EnableDisable,
+    #[description = "A comma separated list of all event roles to add. Format as 'event name 1,event name 2'."]
+    event_name_csv_list: String,
+) -> Result<(), Error> {
+    let guild = ctx.guild().unwrap().deref().clone();
+
+    ctx.defer().await?;
+    let event_list = event_name_csv_list.split(',');
+
+    batch_process_roles(&ctx, &guild, &mode, event_list).await?;
+    Ok(())
+}
+
+async fn batch_process_roles(
+    ctx: &Context<'_>,
+    guild: &Guild,
+    mode: &EnableDisable,
+    event_names: impl Iterator<Item = &str>,
+) -> Result<(), Error> {
+    let mut responses = vec![];
+    let mut tx = ctx.data().db.begin().await?;
+    for event_name in event_names {
+        if !check_event_exist(&mut *tx, event_name).await? {
+            responses.push(format!("`{}` is not an event!", event_name));
+            continue;
+        }
+        match mode {
+            EnableDisable::Enable => {
+                let result = enable_event_role(ctx, guild, event_name).await;
+                let message = match result {
+                    Ok(status) => role_enable_message(&status, event_name),
+                    Err(err) => format!("{}", err),
+                };
+                responses.push(message);
+            }
+            EnableDisable::Disable => {
+                let result = disable_event_role(ctx, guild, event_name).await;
+                let message = match result {
+                    Ok(status) => role_disable_message(&status, event_name),
+                    Err(err) => format!("{}", err),
+                };
+                responses.push(message);
             }
         }
     }
     Ok(())
+}
+
+async fn check_event_exist<'c>(
+    conn: impl Executor<'c, Database = MySql>,
+    event_name: &str,
+) -> Result<bool, sqlx::Error> {
+    let event_count = sqlx::query!(
+        "SELECT COUNT(*) as count FROM event WHERE name = ?",
+        event_name
+    )
+    .fetch_one(conn)
+    .await?;
+
+    Ok(event_count.count != 0)
 }
 
 async fn enable_event_role(
@@ -231,5 +273,23 @@ async fn disable_event_role(
         Ok(DisableRoleResponse::RoleRemoved)
     } else {
         Ok(DisableRoleResponse::RoleAlreadyDisabled)
+    }
+}
+
+fn role_enable_message(status: &EnableRoleResponse, event_name: &str) -> String {
+    match status {
+        EnableRoleResponse::RoleCreated => format!("Role for `{}` has been added.", event_name),
+        EnableRoleResponse::RoleAlreadyEnabled => {
+            format!("Role for `{}` has already been added.", event_name)
+        }
+    }
+}
+
+fn role_disable_message(status: &DisableRoleResponse, event_name: &str) -> String {
+    match status {
+        DisableRoleResponse::RoleRemoved => format!("Role for `{}` has been deleted.", event_name),
+        DisableRoleResponse::RoleAlreadyDisabled => {
+            format!("Role for `{}` has already been deleted.", event_name)
+        }
     }
 }
