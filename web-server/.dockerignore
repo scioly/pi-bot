@@ -1,0 +1,39 @@
+# NEVER DELETE - FILES ASSOCIATED WITH PI-BOT
+service_account.json
+throttle.ctrl
+*password*
+.DS_Store
+met.png
+embed_export.json
+resultstemplate.txt
+*.svg
+
+# Unit test / coverage reports
+htmlcov/
+.tox/
+.nox/
+.coverage
+.coverage.*
+.cache
+nosetests.xml
+coverage.xml
+*.cover
+*.py,cover
+.hypothesis/
+cover/
+
+# Translations
+*.mo
+*.pot
+
+# Environments
+.env
+.venv
+env/
+venv/
+ENV/
+env.bak/
+venv.bak/
+
+# Rust
+target/

@@ -5,7 +5,7 @@ name: Pi-Bot CI
 on:
   push:
     branches:
-      - master
+      - main
   pull_request:
   workflow_dispatch:
 
@@ -79,5 +79,5 @@ jobs:
   build:
     name: Build Image
     needs: lint
-    if: "github.ref == 'refs/heads/master'"
+    if: "github.ref == 'refs/heads/main'"
     uses: ./.github/workflows/build.yml
