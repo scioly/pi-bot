@@ -17,6 +17,7 @@ pub fn all_commands() -> Vec<Command> {
         fun::dogbomb(),
         fun::shibabomb(),
         fun::magic8ball(),
+        fun::xkcd(),
         sync::sync(),
     ]
 }

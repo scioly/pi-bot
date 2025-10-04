@@ -43,6 +43,13 @@ struct DogBombResponse {
     message: String,
 }
 
+/// The actual response from https://xkcd.com/info.0.json has more fields than this, but we will be
+/// ignoring them anyways.
+#[derive(Debug, Deserialize)]
+struct XkcdInfoResponse {
+    num: u64,
+}
+
 /// Gives a fish to bear.
 #[poise::command(slash_command, member_cooldown = 10, member_cooldown_burst = 5)]
 pub async fn fish(ctx: Context<'_>) -> Result<(), Error> {
@@ -402,5 +409,35 @@ pub async fn magic8ball(ctx: Context<'_>) -> Result<(), Error> {
             CreateReply::default().content(format!("**{}**", response)),
         )
         .await?;
+    Ok(())
+}
+
+// Gets an xkcd comic!
+#[poise::command(slash_command, member_cooldown = 60, member_cooldown_burst = 5)]
+pub async fn xkcd(
+    ctx: Context<'_>,
+    #[description = "The number of the xkcd comic to get. If not provided, gets a random comic."]
+    num: Option<u64>,
+) -> Result<(), Error> {
+    const FIRST_XKCD_COMIC: u64 = 1;
+    let response = reqwest::get("https://xkcd.com/info.0.json").await?;
+    if !response.status().is_success() {
+        ctx.reply("Sorry, I couldn't find a shiba to bomb with...")
+            .await?;
+        return Ok(());
+    }
+
+    let xkcd_response = response.json::<XkcdInfoResponse>().await?;
+    let total_comics = xkcd_response.num;
+
+    if let Some(num) = num
+        && num < FIRST_XKCD_COMIC
+        && num > total_comics
+    {
+        ctx.reply("Invalid attempted number for xkcd.").await?;
+        return Ok(());
+    }
+    let num = num.unwrap_or_else(|| rand::random_range(FIRST_XKCD_COMIC..=total_comics));
+    ctx.reply(format!("https://xkcd.com/{}", num)).await?;
     Ok(())
 }
