@@ -4,15 +4,17 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
+anyhow = "1.0.100"
 chrono = "0.4.42"
 common = { path = "../common/" }
 dotenv = { workspace = true }
 log = { workspace = true, features = ["max_level_debug", "release_max_level_info"] }
-poise = { workspace = true }
-poise_macros = { workspace = true }
+num-bigint = "0.4.6"
+poise = { git = "https://github.com/Nydauron/poise.git", branch = "feat/burstable-cooldowns", version = "0.6.1" }
+poise_macros = { git = "https://github.com/Nydauron/poise.git", branch = "feat/burstable-cooldowns", version = "0.6.1" }
+rand = "0.9.2"
 reqwest = { workspace = true }
 serde = { workspace = true, features = ["derive"] }
-serenity = { workspace = true, features = ["builder"] }
 simple_logger = { workspace = true }
 sqlx = { workspace = true, features = ["chrono", "mysql", "runtime-tokio"] }
 tokio = { workspace = true, features = ["rt-multi-thread"] }

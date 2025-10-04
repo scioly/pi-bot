@@ -1,12 +1,20 @@
-use crate::discord::{
-    Command,
-    commands::{auth::auth, auth::whois, event::event, sync::sync},
-};
+use crate::discord::Command;
 
 mod auth;
 mod event;
+mod fun;
 mod sync;
 
 pub fn all_commands() -> Vec<Command> {
-    vec![auth(), event(), sync(), whois()]
+    vec![
+        auth::auth(),
+        auth::whois(),
+        event::event(),
+        fun::fish(),
+        fun::stealfish(),
+        fun::trout(),
+        fun::treat(),
+        fun::magic8ball(),
+        sync::sync(),
+    ]
 }
