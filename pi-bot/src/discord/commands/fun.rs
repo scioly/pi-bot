@@ -3,9 +3,10 @@ use std::time::Duration;
 use num_bigint::BigUint;
 use poise::{
     CreateReply,
-    serenity_prelude::{CreateEmbed, Member, Mentionable},
+    serenity_prelude::{CreateEmbed, Member, Mentionable, User},
 };
 use rand::{Rng, SeedableRng, rngs::StdRng};
+use serde::Deserialize;
 use tokio::sync::Mutex;
 
 use crate::discord::{Context, Error};
@@ -35,6 +36,11 @@ enum SnackOption {
     Brownie,
     #[name = "cotton candy"]
     CottonCandy,
+}
+
+#[derive(Debug, Deserialize)]
+struct DogBombResponse {
+    message: String,
 }
 
 /// Gives a fish to bear.
@@ -274,6 +280,72 @@ pub async fn treat(
             treat_phrase
         ))
         .image(images[idx]);
+    ctx.send(CreateReply::default().embed(embed)).await?;
+    Ok(())
+}
+
+/// Dog bombs another user!
+#[poise::command(slash_command, member_cooldown = 60, member_cooldown_burst = 5)]
+pub async fn dogbomb(
+    ctx: Context<'_>,
+    #[description = "The member to dog bomb!"] member: Option<User>,
+) -> Result<(), Error> {
+    let response = reqwest::get("https://dog.ceo/api/breeds/image/random").await?;
+    if !response.status().is_success() {
+        ctx.reply("Sorry, I couldn't find a doggo to bomb with...")
+            .await?;
+        return Ok(());
+    }
+
+    let dog_response = response.json::<DogBombResponse>().await?;
+    let dog_url = dog_response.message;
+
+    let response_str = if let Some(member) = member {
+        format!(
+            "{}, {} dog bombed you!!",
+            member.mention(),
+            ctx.author().mention()
+        )
+    } else {
+        format!("{} dog bombed themself!!", ctx.author().mention())
+    };
+
+    let embed = CreateEmbed::default()
+        .description(response_str)
+        .image(dog_url);
+    ctx.send(CreateReply::default().embed(embed)).await?;
+    Ok(())
+}
+
+/// Shiba bombs another user!
+#[poise::command(slash_command, member_cooldown = 60, member_cooldown_burst = 5)]
+pub async fn shibabomb(
+    ctx: Context<'_>,
+    #[description = "The member to shiba bomb!"] member: Option<User>,
+) -> Result<(), Error> {
+    let response = reqwest::get("https://dog.ceo/api/breed/shiba/image/random").await?;
+    if !response.status().is_success() {
+        ctx.reply("Sorry, I couldn't find a shiba to bomb with...")
+            .await?;
+        return Ok(());
+    }
+
+    let dog_response = response.json::<DogBombResponse>().await?;
+    let dog_url = dog_response.message;
+
+    let response_str = if let Some(member) = member {
+        format!(
+            "{}, {} shiba bombed you!!",
+            member.mention(),
+            ctx.author().mention()
+        )
+    } else {
+        format!("{} shiba bombed themself!!", ctx.author().mention())
+    };
+
+    let embed = CreateEmbed::default()
+        .description(response_str)
+        .image(dog_url);
     ctx.send(CreateReply::default().embed(embed)).await?;
     Ok(())
 }
