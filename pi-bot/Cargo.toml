@@ -21,3 +21,6 @@ tokio = { workspace = true, features = ["rt-multi-thread"] }
 
 [dev-dependencies]
 test-case = { workspace = true }
+
+[build-dependencies]
+chrono = "0.4.42"

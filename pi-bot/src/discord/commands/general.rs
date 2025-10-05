@@ -1,0 +1,40 @@
+use poise::{
+    CreateReply,
+    serenity_prelude::{Colour, CreateEmbed},
+};
+
+use crate::{
+    discord::{Context, Error},
+    version::VERSION,
+};
+
+/// Returns information about the bot and server.
+#[poise::command(slash_command, member_cooldown = 20, member_cooldown_burst = 2)]
+pub async fn about(ctx: Context<'_>) -> Result<(), Error> {
+    let repo = "https://github.com/scioly/pi-bot";
+    let wiki_link = "https://scioly.org/wiki/User:Pi-Bot";
+    let forums_link = "https://scioly.org/forums/memberlist.php?mode=viewprofile&u=62443";
+    let avatar_url = ctx.cache().current_user().avatar_url();
+
+    let mut embed = CreateEmbed::default()
+        .title(format!("**Pi-Bot {}**", VERSION))
+        .color(Colour::from_rgb(0xF8, 0x6D, 0x5F))
+        .description(
+            "Hey there! I'm Pi-Bot, and I help to manage the Scioly.org forums, \
+            wiki, and chat. You'll often see me around this Discord server to help users get roles \
+            and information about Science Olympiad.\n\
+            \n\
+            I'm developed by the community. If you'd like to find more about development, you can \
+            find more by visiting the links below.",
+        )
+        .field("Code Repository", repo, false)
+        .field("Wiki Page", wiki_link, false)
+        .field("Forums Page", forums_link, false);
+
+    if let Some(avatar_url) = avatar_url {
+        embed = embed.thumbnail(avatar_url);
+    }
+
+    ctx.send(CreateReply::default().embed(embed)).await?;
+    Ok(())
+}

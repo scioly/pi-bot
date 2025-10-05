@@ -9,6 +9,7 @@ use sqlx::MySqlPool;
 use crate::discord::{BotContext, commands::all_commands};
 
 mod discord;
+pub mod version;
 
 #[derive(Debug, Clone, Deserialize)]
 struct Env {

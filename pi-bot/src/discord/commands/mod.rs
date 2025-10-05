@@ -3,6 +3,7 @@ use crate::discord::Command;
 mod auth;
 mod event;
 mod fun;
+mod general;
 mod sync;
 
 pub fn all_commands() -> Vec<Command> {
@@ -18,6 +19,7 @@ pub fn all_commands() -> Vec<Command> {
         fun::shibabomb(),
         fun::magic8ball(),
         fun::xkcd(),
+        general::about(),
         sync::sync(),
     ]
 }
