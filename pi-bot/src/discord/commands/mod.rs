@@ -22,6 +22,7 @@ pub fn all_commands() -> Vec<Command> {
         general::about(),
         general::invite(),
         general::link(),
+        general::random(),
         sync::sync(),
     ]
 }

@@ -77,3 +77,24 @@ pub async fn link(ctx: Context<'_>, destination: SciolyOrgService) -> Result<(),
     ctx.reply(format!("<{}>", destination.get_link())).await?;
     Ok(())
 }
+
+/// Returns a random number, inclusively.
+#[poise::command(slash_command, member_cooldown = 60, member_cooldown_burst = 5)]
+pub async fn random(
+    ctx: Context<'_>,
+    #[description = "The minimum number to choose from. Defaults to 0."] minimum: Option<u64>,
+    #[description = "The maximum number to choose from. Defaults to 10."] maximum: Option<u64>,
+) -> Result<(), Error> {
+    let mut minimum = minimum.unwrap_or(0);
+    let mut maximum = maximum.unwrap_or(10);
+    if maximum < minimum {
+        std::mem::swap(&mut maximum, &mut minimum);
+    }
+    let num = rand::random_range(minimum..=maximum);
+    ctx.reply(format!(
+        "Random number between `{}` and `{}`: `{}`",
+        minimum, maximum, num
+    ))
+    .await?;
+    Ok(())
+}
