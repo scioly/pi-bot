@@ -38,6 +38,12 @@ pub async fn is_staff(ctx: Context<'_>) -> Result<bool, Error> {
 }
 
 #[derive(Debug, PartialEq, Eq)]
+pub enum BinaryPronoun {
+    He,
+    She,
+}
+
+#[derive(Debug, PartialEq, Eq)]
 pub enum Pronoun {
     He,
     She,
@@ -55,8 +61,18 @@ impl Pronoun {
     }
 }
 
+impl From<BinaryPronoun> for Pronoun {
+    fn from(value: BinaryPronoun) -> Self {
+        match value {
+            BinaryPronoun::He => Pronoun::He,
+            BinaryPronoun::She => Pronoun::She,
+        }
+    }
+}
+
 const ROLE_PRONOUN_HE: &str = "He / Him / His";
 const ROLE_PRONOUN_SHE: &str = "She / Her / Hers";
+const DEFAULT_PRONOUN: Pronoun = Pronoun::They;
 
 /// Figures out what pronouns to use for the given user.
 ///
@@ -64,32 +80,54 @@ const ROLE_PRONOUN_SHE: &str = "She / Her / Hers";
 /// set (i.e if [`Pronoun::He`] and [`Pronoun::She`] are set), then [`Pronoun::They`] will also be
 /// used.
 pub fn determine_pronouns(ctx: Context<'_>, member: &Member) -> Pronoun {
-    const DEFAULT_PRONOUN: Pronoun = Pronoun::They;
     let roles = match member.roles(ctx.cache()) {
         Some(roles) => roles,
         None => return DEFAULT_PRONOUN,
     };
 
-    roles
-        .iter()
-        .filter_map(|role| match role.name.as_str() {
-            ROLE_PRONOUN_HE => Some(Pronoun::He),
-            ROLE_PRONOUN_SHE => Some(Pronoun::She),
-            // ROLE_PRONOUN_THEY => Some(Pronoun::They),
-            _ => None,
-        })
-        .fold(None, |acc, pronoun| match acc {
-            None => match pronoun {
-                Pronoun::She | Pronoun::He => Some(pronoun),
-                _ => None,
-            },
-            Some(acc) => {
-                if acc == pronoun || matches!(pronoun, Pronoun::They) {
-                    Some(acc)
-                } else {
-                    Some(DEFAULT_PRONOUN)
-                }
+    disamiguate_pronouns(roles.iter().map(|role| role.name.as_str()))
+}
+
+fn disamiguate_pronouns<'a>(iter: impl Iterator<Item = &'a str>) -> Pronoun {
+    iter.filter_map(|name| match name {
+        ROLE_PRONOUN_HE => Some(BinaryPronoun::He),
+        ROLE_PRONOUN_SHE => Some(BinaryPronoun::She),
+        _ => None,
+    })
+    .fold(None, |acc, pronoun| match acc {
+        None => Some(pronoun.into()),
+        Some(acc) => {
+            if acc == pronoun.into() {
+                Some(acc)
+            } else {
+                Some(DEFAULT_PRONOUN)
             }
-        })
-        .unwrap_or(DEFAULT_PRONOUN)
+        }
+    })
+    .unwrap_or(DEFAULT_PRONOUN)
+}
+
+#[cfg(test)]
+mod test {
+    use super::*;
+    use test_case::test_case;
+
+    const ROLE_PRONOUN_THEY: &str = "They / Them / Theirs";
+
+    #[test_case(&[ROLE_PRONOUN_HE], Pronoun::He; "when with singular he/him")]
+    #[test_case(&[ROLE_PRONOUN_SHE], Pronoun::She; "when with singular she/her")]
+    #[test_case(&[ROLE_PRONOUN_THEY], Pronoun::They; "when with singular they/them")]
+    #[test_case(&[], Pronoun::They; "when with no pronouns")]
+    #[test_case(&[ROLE_PRONOUN_HE, ROLE_PRONOUN_SHE], Pronoun::They; "when with conflicting pronouns")]
+    #[test_case(&[ROLE_PRONOUN_SHE, ROLE_PRONOUN_HE], Pronoun::They; "when with conflicting pronouns flipped")]
+    #[test_case(&[ROLE_PRONOUN_HE, ROLE_PRONOUN_THEY], Pronoun::He; "when with he/they")]
+    #[test_case(&[ROLE_PRONOUN_THEY, ROLE_PRONOUN_HE], Pronoun::He; "when with he/they flipped")]
+    #[test_case(&[ROLE_PRONOUN_SHE, ROLE_PRONOUN_THEY], Pronoun::She; "when with she/they")]
+    #[test_case(&[ROLE_PRONOUN_THEY, ROLE_PRONOUN_SHE], Pronoun::She; "when with she/they flipped")]
+    #[test_case(&[ROLE_PRONOUN_SHE, ROLE_PRONOUN_THEY, ROLE_PRONOUN_HE], Pronoun::They; "when with all available pronouns")]
+    fn pronoun_tests(pronouns: &[&str], expected_pronoun: Pronoun) {
+        let selected_pronoun = disamiguate_pronouns(pronouns.iter().copied());
+
+        assert_eq!(selected_pronoun, expected_pronoun);
+    }
 }

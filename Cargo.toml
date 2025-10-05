@@ -11,3 +11,4 @@ serde = { version = "1.0.219", features = ["derive"] }
 simple_logger = "5.0.0"
 sqlx = { version = "0.8.6", features = ["mysql", "runtime-tokio"] }
 tokio = { version = "1.47.1", features = ["rt-multi-thread"] }
+test-case = "3.3.1"
