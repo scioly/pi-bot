@@ -8,6 +8,31 @@ use crate::{
     version::VERSION,
 };
 
+#[derive(Debug, poise::ChoiceParameter)]
+enum SciolyOrgService {
+    Forums,
+    Wiki,
+    #[name = "Test Exchange"]
+    TestExchange,
+    Gallery,
+    #[name = "OBB"]
+    Obb,
+    Tournaments,
+}
+
+impl SciolyOrgService {
+    pub fn get_link(&self) -> String {
+        let path = match self {
+            Self::Forums => "forums",
+            Self::Wiki => "wiki",
+            Self::TestExchange => "tests",
+            Self::Gallery => "gallery",
+            Self::Obb => "obb",
+            Self::Tournaments => "tournaments",
+        };
+        format!("https://scioly.org/{}", path)
+    }
+}
 /// Returns information about the bot and server.
 #[poise::command(slash_command, member_cooldown = 20, member_cooldown_burst = 2)]
 pub async fn about(ctx: Context<'_>) -> Result<(), Error> {
@@ -43,5 +68,12 @@ pub async fn about(ctx: Context<'_>) -> Result<(), Error> {
 #[poise::command(slash_command, member_cooldown = 60, member_cooldown_burst = 5)]
 pub async fn invite(ctx: Context<'_>) -> Result<(), Error> {
     ctx.reply("https://discord.gg/scioly").await?;
+    Ok(())
+}
+
+/// Returns a link to the Scioly.org forums.
+#[poise::command(slash_command, member_cooldown = 60, member_cooldown_burst = 5)]
+pub async fn link(ctx: Context<'_>, destination: SciolyOrgService) -> Result<(), Error> {
+    ctx.reply(format!("<{}>", destination.get_link())).await?;
     Ok(())
 }
