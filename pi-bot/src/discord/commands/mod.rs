@@ -20,6 +20,7 @@ pub fn all_commands() -> Vec<Command> {
         fun::magic8ball(),
         fun::xkcd(),
         general::about(),
+        general::invite(),
         sync::sync(),
     ]
 }

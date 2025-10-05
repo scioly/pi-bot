@@ -38,3 +38,10 @@ pub async fn about(ctx: Context<'_>) -> Result<(), Error> {
     ctx.send(CreateReply::default().embed(embed)).await?;
     Ok(())
 }
+
+/// Returns the Discord server invite.
+#[poise::command(slash_command, member_cooldown = 60, member_cooldown_burst = 5)]
+pub async fn invite(ctx: Context<'_>) -> Result<(), Error> {
+    ctx.reply("https://discord.gg/scioly").await?;
+    Ok(())
+}
