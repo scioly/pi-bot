@@ -9,7 +9,10 @@ use rand::{Rng, SeedableRng, rngs::StdRng};
 use serde::Deserialize;
 use tokio::sync::Mutex;
 
-use crate::discord::{Context, Error};
+use crate::discord::{
+    Context, Error,
+    utils::{Pronoun, determine_pronouns},
+};
 
 static FISH_COUNT: Mutex<BigUint> = Mutex::const_new(BigUint::ZERO);
 
@@ -155,7 +158,12 @@ pub async fn trout(
     let member_str = if let Some(member) = member {
         member.user.mention().to_string()
     } else {
-        "themself".to_string()
+        let pronouns = if let Some(member) = ctx.author_member().await {
+            determine_pronouns(ctx, member.as_ref())
+        } else {
+            Pronoun::They
+        };
+        pronouns.get_pronounself().to_string()
     };
 
     let embed = CreateEmbed::default()
@@ -275,7 +283,12 @@ pub async fn treat(
     let member_str = if let Some(member) = member {
         member.mention().to_string()
     } else {
-        "themself".to_string()
+        let pronouns = if let Some(member) = ctx.author_member().await {
+            determine_pronouns(ctx, member.as_ref())
+        } else {
+            Pronoun::They
+        };
+        pronouns.get_pronounself().to_string()
     };
 
     let idx = rand::random_range(0..images.len());
@@ -314,7 +327,16 @@ pub async fn dogbomb(
             ctx.author().mention()
         )
     } else {
-        format!("{} dog bombed themself!!", ctx.author().mention())
+        let pronouns = if let Some(member) = ctx.author_member().await {
+            determine_pronouns(ctx, member.as_ref())
+        } else {
+            Pronoun::They
+        };
+        format!(
+            "{} dog bombed {}!!",
+            ctx.author().mention(),
+            pronouns.get_pronounself()
+        )
     };
 
     let embed = CreateEmbed::default()
@@ -347,7 +369,16 @@ pub async fn shibabomb(
             ctx.author().mention()
         )
     } else {
-        format!("{} shiba bombed themself!!", ctx.author().mention())
+        let pronouns = if let Some(member) = ctx.author_member().await {
+            determine_pronouns(ctx, member.as_ref())
+        } else {
+            Pronoun::They
+        };
+        format!(
+            "{} shiba bombed {}!!",
+            ctx.author().mention(),
+            pronouns.get_pronounself()
+        )
     };
 
     let embed = CreateEmbed::default()
