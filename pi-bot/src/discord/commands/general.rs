@@ -98,3 +98,18 @@ pub async fn random(
     .await?;
     Ok(())
 }
+
+/// Information about gaining the @Coach role.
+#[poise::command(slash_command, member_cooldown = 60, member_cooldown_burst = 5)]
+pub async fn coach(ctx: Context<'_>) -> Result<(), Error> {
+    ctx.send(
+        CreateReply::default()
+            .content(
+                "If you would like to apply for the `Coach` role, please fill out the form here: \
+            <https://forms.gle/UBKpWgqCr9Hjw9sa6>.",
+            )
+            .ephemeral(true),
+    )
+    .await?;
+    Ok(())
+}
