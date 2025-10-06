@@ -24,6 +24,7 @@ pub fn all_commands() -> Vec<Command> {
         general::link(),
         general::random(),
         general::coach(),
+        general::info(),
         sync::sync(),
     ]
 }
