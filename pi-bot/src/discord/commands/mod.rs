@@ -4,6 +4,7 @@ mod auth;
 mod event;
 mod fun;
 mod general;
+mod staff;
 mod sync;
 
 pub fn all_commands() -> Vec<Command> {
@@ -25,6 +26,7 @@ pub fn all_commands() -> Vec<Command> {
         general::random(),
         general::coach(),
         general::info(),
+        staff::slowmode(),
         sync::sync(),
     ]
 }
