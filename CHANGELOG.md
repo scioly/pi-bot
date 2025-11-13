@@ -107,7 +107,7 @@ every time
 * `/prepembed` now allows for exporting/import embeds.
 * Direct message logs are now more cleanly formatted and use relative dates.
 * Users are now sent a direct message about why their message was deleted after editing it to include a censored term.
-* Staff can now change a user's nickname or kick the user from a innapropriate username report.
+* Staff can now change a user's nickname or kick the user from a inappropriate username report.
 * Edited message logs now include a link to jump to a message.
 * Deleted message logs of non-cached messages now contain an explanation for why more data is not available in the log.
 * Censor cog for handling all message censoring.

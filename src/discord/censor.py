@@ -30,7 +30,7 @@ logger = logging.getLogger(__name__)
 
 class Censor(commands.Cog):
     """
-    Responsible for censoring innapropriate words' and emojis in user content.
+    Responsible for censoring inappropriate words' and emojis in user content.
     """
 
     def __init__(self, bot: PiBot):
@@ -223,7 +223,7 @@ class Censor(commands.Cog):
             await after.author.send(
                 "You recently edited a message, but it **contained a censored "
                 "word**! Therefore, I unfortunately had to delete it. In the "
-                "future, please do not edit innapropriate words into your "
+                "future, please do not edit inappropriate words into your "
                 "messages, and they will not be deleted.",
             )
 
@@ -240,7 +240,7 @@ class Censor(commands.Cog):
 
     @commands.Cog.listener()
     async def on_member_join(self, member: discord.Member):
-        # Check to see if user's name is innapropriate
+        # Check to see if user's name is inappropriate
         name = member.name
         if await self.censor_needed(name):
             # If name contains a censored link
@@ -252,13 +252,13 @@ class Censor(commands.Cog):
     async def on_member_update(self, _, after):
         """
         When a member updates their presence on the Discord server, check to see
-        if their name contains an innapropriate term, and if so, open a report.
+        if their name contains an inappropriate term, and if so, open a report.
 
         Args:
             after (discord.Member): The member who changed their name, after they've
                 changed it.
         """
-        # Notify staff if the user updated their name to include an innapropriate name
+        # Notify staff if the user updated their name to include an inappropriate name
         if after.nick is None:
             return  # No need to check if user does not have a new nickname set
 
