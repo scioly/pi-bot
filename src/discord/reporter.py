@@ -28,9 +28,9 @@ class IgnoreButton(discord.ui.Button):
     the report database to be updated.
     """
 
-    report_view: InnapropriateUsername | InvitationalRequest
+    report_view: InappropriateUsername | InvitationalRequest
 
-    def __init__(self, view: InnapropriateUsername | InvitationalRequest):
+    def __init__(self, view: InappropriateUsername | InvitationalRequest):
         self.report_view = view
         super().__init__(
             style=discord.ButtonStyle.gray,
@@ -47,7 +47,7 @@ class IgnoreButton(discord.ui.Button):
             interaction.guild.text_channels,
             name="closed-reports",
         )
-        if isinstance(self.report_view, InnapropriateUsername):
+        if isinstance(self.report_view, InappropriateUsername):
             await closed_reports.send(
                 f"**Report was ignored** by {interaction.user.mention} - {self.report_view.member.mention} had the "
                 f"inappropriate username `{self.report_view.offending_username}`, but the report was ignored. ",
@@ -67,9 +67,9 @@ class CompletedButton(discord.ui.Button):
     A button to mark a report as completed.
     """
 
-    report_view: InnapropriateUsername | InvitationalRequest
+    report_view: InappropriateUsername | InvitationalRequest
 
-    def __init__(self, view: InnapropriateUsername | InvitationalRequest):
+    def __init__(self, view: InappropriateUsername | InvitationalRequest):
         self.report_view = view
         super().__init__(
             style=discord.ButtonStyle.green,
@@ -101,9 +101,9 @@ class ChangeInappropriateUsername(discord.ui.Button):
     and the report database to be updated.
     """
 
-    report_view: InnapropriateUsername
+    report_view: InappropriateUsername
 
-    def __init__(self, view: InnapropriateUsername):
+    def __init__(self, view: InappropriateUsername):
         self.report_view = view
         super().__init__(
             style=discord.ButtonStyle.green,
@@ -127,7 +127,7 @@ class ChangeInappropriateUsername(discord.ui.Button):
         )
         if member_still_here:
             await closed_reports.send(
-                f"**Member's username was changed** by {interaction.user.mention} - {self.report_view.member.mention} had the innapropriate username `{self.report_view.offending_username}`, and their username was changed to `boomilever`.",
+                f"**Member's username was changed** by {interaction.user.mention} - {self.report_view.member.mention} had the inappropriate username `{self.report_view.offending_username}`, and their username was changed to `boomilever`.",
             )
 
             # Change the user's username
@@ -135,7 +135,7 @@ class ChangeInappropriateUsername(discord.ui.Button):
 
         else:
             await closed_reports.send(
-                f"**Member's username was attempted to be changed** by {interaction.user.mention} - {self.report_view.member.mention} had the innapropriate username `{self.report_view.offending_username}`, and their username was attempted to be changed to `boomilever`, however, the user had left the server.",
+                f"**Member's username was attempted to be changed** by {interaction.user.mention} - {self.report_view.member.mention} had the inappropriate username `{self.report_view.offending_username}`, and their username was attempted to be changed to `boomilever`, however, the user had left the server.",
             )
 
         # Update the report database
@@ -147,9 +147,9 @@ class KickUserButton(discord.ui.Button):
     Discord button which allows a staff member to promptly kick a user.
     """
 
-    report_view: InnapropriateUsername
+    report_view: InappropriateUsername
 
-    def __init__(self, view: InnapropriateUsername):
+    def __init__(self, view: InappropriateUsername):
         self.report_view = view
         super().__init__(
             style=discord.ButtonStyle.red,
@@ -173,7 +173,7 @@ class KickUserButton(discord.ui.Button):
         )
         if member_still_here:
             await closed_reports.send(
-                f"**Member was kicked** by {interaction.user.mention} - {self.report_view.member.mention} had the innapropriate username `{self.report_view.offending_username}`, and the user was kicked from the server.",
+                f"**Member was kicked** by {interaction.user.mention} - {self.report_view.member.mention} had the inappropriate username `{self.report_view.offending_username}`, and the user was kicked from the server.",
             )
 
             # Kick the user
@@ -181,7 +181,7 @@ class KickUserButton(discord.ui.Button):
 
         else:
             await closed_reports.send(
-                f"**Attempted to kick member* by {interaction.user.mention} - {self.report_view.member.mention} had the innapropriate username `{self.report_view.offending_username}` and a kick was attempted on the user, however, the user had left the server.",
+                f"**Attempted to kick member* by {interaction.user.mention} - {self.report_view.member.mention} had the inappropriate username `{self.report_view.offending_username}` and a kick was attempted on the user, however, the user had left the server.",
             )
 
         # Update the report database
@@ -265,9 +265,9 @@ class InvitationalExtendButton(discord.ui.Button):
         await update_invitational_list(self.report_view.bot)
 
 
-class InnapropriateUsername(discord.ui.View):
+class InappropriateUsername(discord.ui.View):
     """
-    Discord view representing a report on a user with an innapropriate username.
+    Discord view representing a report on a user with an inappropriate username.
     """
 
     member: discord.Member
@@ -367,7 +367,7 @@ class Reporter(commands.Cog):
         offending_username: str,
     ):
         """
-        Creates a report that a user has an innapropriate username.
+        Creates a report that a user has an inappropriate username.
 
         Args:
             member: The member with the inappropriate username.
@@ -396,7 +396,7 @@ class Reporter(commands.Cog):
         )
         await reports_channel.send(
             embed=embed,
-            view=InnapropriateUsername(member, 123, offending_username),
+            view=InappropriateUsername(member, 123, offending_username),
         )
 
     async def create_cron_task_report(self, task: dict) -> None:
