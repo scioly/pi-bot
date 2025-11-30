@@ -13,6 +13,7 @@ pub async fn slowmode(_: Context<'_>) -> Result<(), Error> {
     Ok(())
 }
 
+/// Sets the slowmode for a particular channel.
 #[poise::command(slash_command, guild_only)]
 pub async fn set(
     ctx: Context<'_>,
@@ -38,6 +39,7 @@ pub async fn set(
     Ok(())
 }
 
+/// Removes the slowmode set on a given channel.
 #[poise::command(slash_command, guild_only)]
 pub async fn remove(
     ctx: Context<'_>,
