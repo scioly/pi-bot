@@ -391,9 +391,11 @@ pub async fn shibabomb(
 /// Rolls the magic 8 ball...
 #[poise::command(slash_command, member_cooldown = 60, member_cooldown_burst = 5)]
 pub async fn magic8ball(ctx: Context<'_>) -> Result<(), Error> {
+    let mut ticker = tokio::time::interval(Duration::from_secs(1));
+    ticker.tick().await;
     let switching_ball_message = "Swishing the magic 8 ball...";
     let reply = ctx.reply(switching_ball_message).await?;
-    tokio::time::sleep(Duration::from_secs(1)).await;
+    ticker.tick().await;
 
     let switching_ball_message = switching_ball_message
         .strip_suffix(|_| true)
@@ -402,7 +404,7 @@ pub async fn magic8ball(ctx: Context<'_>) -> Result<(), Error> {
         .edit(ctx, CreateReply::default().content(switching_ball_message))
         .await?;
 
-    tokio::time::sleep(Duration::from_secs(1)).await;
+    ticker.tick().await;
 
     let switching_ball_message = switching_ball_message
         .strip_suffix(|_| true)
