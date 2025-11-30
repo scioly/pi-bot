@@ -27,6 +27,7 @@ pub fn all_commands() -> Vec<Command> {
         general::coach(),
         general::info(),
         staff::slowmode(),
+        staff::nuke(),
         sync::sync(),
     ]
 }

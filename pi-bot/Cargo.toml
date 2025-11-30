@@ -8,6 +8,7 @@ anyhow = "1.0.100"
 chrono = "0.4.42"
 common = { path = "../common/" }
 dotenv = { workspace = true }
+indoc = "2.0.7"
 log = { workspace = true, features = ["max_level_debug", "release_max_level_info"] }
 num-bigint = "0.4.6"
 poise = { git = "https://github.com/Nydauron/poise.git", branch = "feat/burstable-cooldowns", version = "0.6.1" }
