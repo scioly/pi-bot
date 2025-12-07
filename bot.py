@@ -47,6 +47,8 @@ BOT_PREFIX = "?" if env.dev_mode else "!"
 
 
 class PiBotCommandTree(app_commands.CommandTree):
+    client: PiBot
+
     def __init__(self, client: PiBot):
         super().__init__(client)
 
@@ -95,15 +97,23 @@ class PiBotCommandTree(app_commands.CommandTree):
             )
         elif isinstance(error, app_commands.CommandInvokeError):
             message = "This command experienced a general error."
+            if error.original:
+                message += f"\n{error.original}"
 
             # Report error to staff
             reporter_cog = self.client.get_cog("Reporter")
 
-            assert isinstance(reporter_cog, Reporter)
-            await reporter_cog.create_command_error_report(
-                error.original,
-                interaction.command,
-            )
+            if isinstance(reporter_cog, Reporter):
+                await reporter_cog.create_command_error_report(
+                    error.original,
+                    interaction.command,
+                )
+            else:
+                logger.warning(
+                    "Reporter cog was not of type `Reporter`. Was instead: {}".format(
+                        type(reporter_cog),
+                    ),
+                )
 
         elif isinstance(error, app_commands.TransformerError):
             message = "This command experienced a transformer error."
