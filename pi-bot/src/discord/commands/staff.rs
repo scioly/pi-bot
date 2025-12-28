@@ -180,7 +180,10 @@ pub async fn nuke(
     }
 
     let reply = CreateReply::new()
-        .content(format!("Now nuking {} messages ...", count))
+        .content(format!(
+            "Now nuking {} messages from the channel ...",
+            count
+        ))
         .components(vec![]);
     reply_handler.edit(ctx, reply).await?;
 
