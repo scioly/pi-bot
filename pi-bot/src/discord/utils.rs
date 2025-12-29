@@ -2,9 +2,22 @@ use poise::serenity_prelude::Member;
 
 use crate::discord::{Context, Error};
 
-static ROLE_STAFF: &str = "Staff";
-static ROLE_VIP: &str = "VIP";
+// TODO: These names should be used to only fetch the initial roles or channel/categeory names.
+// If we rely on these names to find assets on Discord, accidental changes on Discord can lead to
+// Pi-Bot breaking.
+//
+// We should store the snowflake IDs of each item here inside of the database.
+//
+// It would also make identification easier as we can just compare snowflake IDs
+pub static ROLE_STAFF: &str = "Staff";
+pub static ROLE_VIP: &str = "VIP";
+pub static ROLE_BOTS: &str = "Bots";
 pub static ROLE_MUTED: &str = "Muted";
+pub static ROLE_EVERYONE: &str = "@everyone";
+
+pub static CATEGORY_BETA: &str = "beta";
+pub static CATEGORY_STAFF: &str = "staff";
+pub static CATEGORY_COMMUNITY: &str = "community";
 
 pub static EMOJI_LOADING: &str = "<a:loading:1409087568313712731>";
 

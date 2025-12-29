@@ -2,17 +2,23 @@ use indoc::formatdoc;
 use poise::{
     ChoiceParameter, CreateReply,
     serenity_prelude::{
-        ButtonStyle, Colour, ComponentInteractionDataKind, CreateActionRow, CreateButton,
-        CreateEmbed, CreateInteractionResponse, CreateInteractionResponseMessage, EditChannel,
-        FormattedTimestamp, FormattedTimestampStyle, GetMessages, GuildChannel, Member,
-        Mentionable, Timestamp,
+        ButtonStyle, ChannelType, Colour, ComponentInteractionDataKind, CreateActionRow,
+        CreateButton, CreateEmbed, CreateInteractionResponse, CreateInteractionResponseMessage,
+        EditChannel, FormattedTimestamp, FormattedTimestampStyle, GetMessages, GuildChannel,
+        Member, Mentionable, PermissionOverwrite, PermissionOverwriteType, Permissions, Timestamp,
         futures::future::{Either, select},
     },
 };
 use std::{pin::pin, time::Duration};
 use tokio::time::Instant;
 
-use crate::discord::{Context, Error, utils::ROLE_MUTED};
+use crate::discord::{
+    Context, Error,
+    utils::{
+        CATEGORY_BETA, CATEGORY_COMMUNITY, CATEGORY_STAFF, EMOJI_LOADING, ROLE_BOTS, ROLE_EVERYONE,
+        ROLE_MUTED, ROLE_STAFF, ROLE_VIP,
+    },
+};
 
 /// Manages slowmode for a channel.
 #[poise::command(
@@ -304,5 +310,171 @@ pub async fn mute(
         ctx.reply(format!("{} was muted indefinitely.", member.mention()))
             .await?;
     }
+    Ok(())
+}
+
+/// Staff command. Locks a channel, preventing members from sending messages.
+#[poise::command(
+    slash_command,
+    guild_only,
+    default_member_permissions = "MANAGE_CHANNELS",
+    required_bot_permissions = "MANAGE_CHANNELS"
+)]
+pub async fn lock(ctx: Context<'_>) -> Result<(), Error> {
+    let reply_handler = ctx
+        .reply(format!("{} Attempting to lock channel ...", EMOJI_LOADING))
+        .await?;
+
+    let mut channel = ctx.guild_channel().await.unwrap();
+    let category = channel.parent_id;
+    let is_priviledged_channel = match category {
+        None => false,
+        Some(category_id) => {
+            let category = category_id
+                .to_channel(ctx.http())
+                .await
+                .map(|channel| channel.guild())
+                .unwrap();
+            category.is_some_and(|category| {
+                matches!(category.kind, ChannelType::Category)
+                    && [CATEGORY_BETA, CATEGORY_STAFF, CATEGORY_COMMUNITY]
+                        .contains(&category.name.as_str())
+            })
+        }
+    };
+    if is_priviledged_channel {
+        reply_handler
+            .edit(
+                ctx,
+                CreateReply::new().content(
+                    "This command is not suitable for this channel because of its category.",
+                ),
+            )
+            .await?;
+        return Ok(());
+    }
+
+    let roles = channel.guild_id.roles(ctx.http()).await?;
+    let everyone_role = roles
+        .values()
+        .find(|role| role.name == ROLE_EVERYONE)
+        .ok_or(format!("Could not find `{}` role", ROLE_EVERYONE))?;
+    let staff_role = roles
+        .values()
+        .find(|role| role.name == ROLE_STAFF)
+        .ok_or(format!("Could not find `@{}` role", ROLE_STAFF))?;
+    let vip_role = roles
+        .values()
+        .find(|role| role.name == ROLE_VIP)
+        .ok_or(format!("Could not find `@{}` role", ROLE_VIP))?;
+    let bot_role = roles
+        .values()
+        .find(|role| role.name == ROLE_BOTS)
+        .ok_or(format!("Could not find `@{}` role", ROLE_BOTS))?;
+    channel
+        .edit(
+            ctx.http(),
+            EditChannel::new().permissions([
+                PermissionOverwrite {
+                    allow: Permissions::READ_MESSAGE_HISTORY,
+                    deny: Permissions::ADD_REACTIONS | Permissions::SEND_MESSAGES,
+                    kind: PermissionOverwriteType::Role(everyone_role.id),
+                },
+                PermissionOverwrite {
+                    allow: Permissions::ADD_REACTIONS
+                        | Permissions::SEND_MESSAGES
+                        | Permissions::READ_MESSAGE_HISTORY,
+                    deny: Permissions::empty(),
+                    kind: PermissionOverwriteType::Role(staff_role.id),
+                },
+                PermissionOverwrite {
+                    allow: Permissions::ADD_REACTIONS
+                        | Permissions::SEND_MESSAGES
+                        | Permissions::READ_MESSAGE_HISTORY,
+                    deny: Permissions::empty(),
+                    kind: PermissionOverwriteType::Role(vip_role.id),
+                },
+                PermissionOverwrite {
+                    allow: Permissions::ADD_REACTIONS
+                        | Permissions::SEND_MESSAGES
+                        | Permissions::READ_MESSAGE_HISTORY,
+                    deny: Permissions::empty(),
+                    kind: PermissionOverwriteType::Role(bot_role.id),
+                },
+            ]),
+        )
+        .await?;
+
+    reply_handler
+        .edit(
+            ctx,
+            CreateReply::new().content("Locked the channel to public access."),
+        )
+        .await?;
+    Ok(())
+}
+
+/// Staff command. Unlocks a channel, allowing members to speak after the channel was originally locked.
+#[poise::command(
+    slash_command,
+    guild_only,
+    default_member_permissions = "MANAGE_CHANNELS",
+    required_bot_permissions = "MANAGE_CHANNELS"
+)]
+pub async fn unlock(ctx: Context<'_>) -> Result<(), Error> {
+    let reply_handler = ctx
+        .reply(format!(
+            "{} Attempting to unlock channel ...",
+            EMOJI_LOADING
+        ))
+        .await?;
+
+    let mut channel = ctx.guild_channel().await.unwrap();
+    let category = match channel.parent_id {
+        None => None,
+        Some(category_id) => {
+            let category = category_id
+                .to_channel(ctx.http())
+                .await
+                .map(|channel| channel.guild())
+                .unwrap();
+            category.and_then(|category| match category.kind {
+                ChannelType::Category => Some(category),
+                _ => None,
+            })
+        }
+    };
+    let roles = channel.guild_id.roles(ctx.http()).await?;
+    let everyone_role = roles
+        .values()
+        .find(|role| role.name == ROLE_EVERYONE)
+        .ok_or(format!("Could not find `{}` role", ROLE_EVERYONE))?;
+
+    if let Some(category) = category
+        && [CATEGORY_BETA, CATEGORY_STAFF, CATEGORY_COMMUNITY].contains(&category.name.as_str())
+    {
+        reply_handler
+            .edit(
+                ctx,
+                CreateReply::new().content(
+                    "This command is not suitable for this channel because of its category.",
+                ),
+            )
+            .await?;
+        return Ok(());
+    }
+    channel
+        .edit(
+            ctx.http(),
+            EditChannel::new().permissions([PermissionOverwrite {
+                allow: Permissions::empty(),
+                deny: Permissions::empty(),
+                kind: PermissionOverwriteType::Role(everyone_role.id),
+            }]),
+        )
+        .await?;
+    reply_handler.edit(ctx,CreateReply::new().
+        content("Unlocked the channel to public access. Please check if permissions need to be synced.")
+    ).await?;
     Ok(())
 }

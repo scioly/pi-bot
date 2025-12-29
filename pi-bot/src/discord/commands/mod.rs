@@ -29,6 +29,8 @@ pub fn all_commands() -> Vec<Command> {
         staff::slowmode(),
         staff::nuke(),
         staff::mute(),
+        staff::lock(),
+        staff::unlock(),
         sync::sync(),
     ]
 }
