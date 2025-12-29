@@ -4,6 +4,7 @@ use crate::discord::{Context, Error};
 
 static ROLE_STAFF: &str = "Staff";
 static ROLE_VIP: &str = "VIP";
+pub static ROLE_MUTED: &str = "Muted";
 
 pub static EMOJI_LOADING: &str = "<a:loading:1409087568313712731>";
 

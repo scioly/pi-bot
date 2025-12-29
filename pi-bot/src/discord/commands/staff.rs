@@ -1,17 +1,18 @@
 use indoc::formatdoc;
 use poise::{
-    CreateReply,
+    ChoiceParameter, CreateReply,
     serenity_prelude::{
         ButtonStyle, Colour, ComponentInteractionDataKind, CreateActionRow, CreateButton,
         CreateEmbed, CreateInteractionResponse, CreateInteractionResponseMessage, EditChannel,
-        GetMessages, GuildChannel, Mentionable,
+        FormattedTimestamp, FormattedTimestampStyle, GetMessages, GuildChannel, Member,
+        Mentionable, Timestamp,
         futures::future::{Either, select},
     },
 };
 use std::{pin::pin, time::Duration};
 use tokio::time::Instant;
 
-use crate::discord::{Context, Error};
+use crate::discord::{Context, Error, utils::ROLE_MUTED};
 
 /// Manages slowmode for a channel.
 #[poise::command(
@@ -195,5 +196,113 @@ pub async fn nuke(
         .content(format!("Nuked {} messages.", count))
         .components(vec![]);
     reply_handler.edit(ctx, reply).await?;
+    Ok(())
+}
+
+#[derive(Debug, ChoiceParameter)]
+enum MuteLength {
+    #[name = "10 minutes"]
+    Mins10,
+    #[name = "20 minutes"]
+    Mins20,
+    #[name = "1 hour"]
+    Hours1,
+    #[name = "2 hours"]
+    Hours2,
+    #[name = "8 hours"]
+    Hours8,
+    #[name = "1 day"]
+    Days1,
+    #[name = "4 days"]
+    Days4,
+    #[name = "7 days"]
+    Days7,
+    #[name = "4 weeks"]
+    Weeks4,
+    // #[name = "1 month"]
+    // Month1,
+    // #[name = "1 year"]
+    // Year1,
+    #[name = "Indefinitely"]
+    Indefinitely,
+}
+
+#[derive(Debug, ChoiceParameter)]
+enum YesNo {
+    Yes,
+    No,
+}
+
+// TODO: add view to confirm mute
+// TODO: use `reason` and `quiet`
+/// Staff command. Mutes a user.
+#[poise::command(
+    slash_command,
+    guild_only,
+    default_member_permissions = "MANAGE_ROLES",
+    required_bot_permissions = "MANAGE_ROLES"
+)]
+pub async fn mute(
+    ctx: Context<'_>,
+    #[description = "The user to mute."] mut member: Member,
+    #[description = "The reason to mute the user."] _reason: Option<String>,
+    #[description = "How long to mute the user for. Mutally exclusive to `until`."]
+    mute_length: Option<MuteLength>,
+    #[description = "Unix timestamp (in secs) for how long to keep user muted until. Mutally exclusive to `mute_length`."]
+    until: Option<i64>,
+    #[description = "Does not DM the user upon mute. Defaults to no."] _quiet: Option<YesNo>,
+) -> Result<(), Error> {
+    let guild = ctx.guild_id().unwrap();
+    let now = Timestamp::now();
+    let end_time =
+        match (mute_length, until) {
+            (Some(_), Some(_)) => return Err(
+                "Provided `mute_length` and `until` options when only one of them should be sent"
+                    .into(),
+            ),
+            (None, None) => return Err("One of `mute_length` and `until` should be sent".into()),
+            (Some(duration_name), None) => {
+                let duration = match duration_name {
+                    MuteLength::Mins10 => Some(Duration::from_mins(10).as_secs()),
+                    MuteLength::Mins20 => Some(Duration::from_mins(20).as_secs()),
+                    MuteLength::Hours1 => Some(Duration::from_hours(1).as_secs()),
+                    MuteLength::Hours2 => Some(Duration::from_hours(2).as_secs()),
+                    MuteLength::Hours8 => Some(Duration::from_hours(8).as_secs()),
+                    MuteLength::Days1 => Some(Duration::from_hours(24).as_secs()),
+                    MuteLength::Days4 => Some(Duration::from_hours(4 * 24).as_secs()),
+                    MuteLength::Days7 => Some(Duration::from_hours(7 * 24).as_secs()),
+                    MuteLength::Weeks4 => Some(Duration::from_hours(28 * 24).as_secs()),
+                    MuteLength::Indefinitely => None,
+                };
+                if let Some(duration) = duration {
+                    Some(Timestamp::from_unix_timestamp(
+                        now.unix_timestamp() + duration as i64,
+                    )?)
+                } else {
+                    None
+                }
+            }
+            (None, Some(until)) => Some(Timestamp::from_unix_timestamp(until)?),
+        };
+    if let Some(end_time) = end_time {
+        member
+            .disable_communication_until_datetime(ctx.http(), end_time)
+            .await?;
+        ctx.reply(format!(
+            "{} was muted until {}.",
+            member.mention(),
+            FormattedTimestamp::new(end_time, Some(FormattedTimestampStyle::ShortDateTime))
+        ))
+        .await?;
+    } else {
+        let roles = guild.roles(ctx.http()).await?;
+        let mute_role = roles
+            .values()
+            .find(|role| role.name == ROLE_MUTED)
+            .ok_or(format!("Could not find `{}` role", ROLE_MUTED))?;
+        member.add_role(ctx.http(), mute_role.id).await?;
+        ctx.reply(format!("{} was muted indefinitely.", member.mention()))
+            .await?;
+    }
     Ok(())
 }
