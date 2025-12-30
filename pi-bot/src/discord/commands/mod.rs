@@ -1,6 +1,7 @@
 use crate::discord::Command;
 
 mod auth;
+mod censor;
 mod event;
 mod fun;
 mod general;
@@ -11,6 +12,7 @@ pub fn all_commands() -> Vec<Command> {
     vec![
         auth::auth(),
         auth::whois(),
+        censor::censor(),
         event::event(),
         fun::fish(),
         fun::stealfish(),

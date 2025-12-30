@@ -19,6 +19,9 @@ pub static CATEGORY_BETA: &str = "beta";
 pub static CATEGORY_STAFF: &str = "staff";
 pub static CATEGORY_COMMUNITY: &str = "community";
 
+pub static CHANNEL_STAFF: &str = "staff";
+pub static CHANNEL_REPORTS: &str = "reports";
+
 pub static EMOJI_LOADING: &str = "<a:loading:1409087568313712731>";
 
 pub async fn is_staff(ctx: Context<'_>) -> Result<bool, Error> {
