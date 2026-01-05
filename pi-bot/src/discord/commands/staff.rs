@@ -2,11 +2,13 @@ use indoc::formatdoc;
 use poise::{
     ChoiceParameter, CreateReply,
     serenity_prelude::{
-        ButtonStyle, ChannelType, Colour, ComponentInteractionDataKind, CreateActionRow,
-        CreateButton, CreateEmbed, CreateInteractionResponse, CreateInteractionResponseMessage,
-        EditChannel, FormattedTimestamp, FormattedTimestampStyle, GetMessages, GuildChannel,
-        Member, Mentionable, PermissionOverwrite, PermissionOverwriteType, Permissions, Timestamp,
+        ButtonStyle, ChannelType, CollectComponentInteractions, Colour,
+        ComponentInteractionDataKind, CreateActionRow, CreateButton, CreateComponent, CreateEmbed,
+        CreateInteractionResponse, CreateInteractionResponseMessage, EditChannel,
+        FormattedTimestamp, FormattedTimestampStyle, GetMessages, GuildChannel, Member,
+        Mentionable, PermissionOverwrite, PermissionOverwriteType, Permissions, Timestamp,
         futures::future::{Either, select},
+        nonmax::NonMaxU16,
     },
 };
 use std::{pin::pin, time::Duration};
@@ -23,7 +25,7 @@ use crate::discord::{
 /// Manages slowmode for a channel.
 #[poise::command(
     slash_command,
-    subcommands("set", "remove"),
+    subcommands("slowmode_set", "slowmode_remove"),
     default_member_permissions = "MANAGE_CHANNELS",
     required_bot_permissions = "MANAGE_CHANNELS"
 )]
@@ -32,16 +34,19 @@ pub async fn slowmode(_: Context<'_>) -> Result<(), Error> {
 }
 
 /// Sets the slowmode for a particular channel.
-#[poise::command(slash_command, guild_only)]
-pub async fn set(
+#[poise::command(rename = "set", slash_command, guild_only)]
+pub async fn slowmode_set(
     ctx: Context<'_>,
     #[description = "Optional. How long the slowmode delay should be, in seconds. If none, assumed to be 20 seconds."]
     delay: Option<u16>,
     #[description = "Optional. The channel to enable the slowmode in. If none, assumed in the current channel."]
     channel: Option<GuildChannel>,
 ) -> Result<(), Error> {
-    let delay = delay.unwrap_or(20);
-    let mut channel = channel.unwrap_or(ctx.guild_channel().await.unwrap());
+    let delay = delay
+        .or(Some(20))
+        .and_then(NonMaxU16::new)
+        .ok_or("Delay cannot be higher or equal to 65355")?;
+    let mut channel = channel.unwrap_or(ctx.channel().await.unwrap().guild().unwrap());
     channel
         .edit(
             ctx.http(),
@@ -58,15 +63,18 @@ pub async fn set(
 }
 
 /// Removes the slowmode set on a given channel.
-#[poise::command(slash_command, guild_only)]
-pub async fn remove(
+#[poise::command(rename = "remove", slash_command, guild_only)]
+pub async fn slowmode_remove(
     ctx: Context<'_>,
     #[description = "Optional. The channel to enable the slowmode in. If none, assumed in the current channel."]
     channel: Option<GuildChannel>,
 ) -> Result<(), Error> {
-    let mut channel = channel.unwrap_or(ctx.guild_channel().await.unwrap());
+    let mut channel = channel.unwrap_or(ctx.channel().await.unwrap().guild().unwrap());
     channel
-        .edit(ctx.http(), EditChannel::default().rate_limit_per_user(0))
+        .edit(
+            ctx.http(),
+            EditChannel::default().rate_limit_per_user(NonMaxU16::ZERO),
+        )
         .await?;
     ctx.reply(format!(
         "Removed the slowmode delay in {}.",
@@ -90,8 +98,9 @@ pub async fn nuke(
     #[max = 100]
     count: u8,
 ) -> Result<(), Error> {
-    let channel = ctx.guild_channel().await.unwrap();
+    let channel = ctx.channel().await.unwrap();
     let messages_to_delete = channel
+        .id()
         .messages(ctx.http(), GetMessages::new().limit(count))
         .await?;
 
@@ -113,10 +122,12 @@ pub async fn nuke(
             channel.mention(),
             COUNTDOWN_START_SECS
         ));
-    let components = vec![CreateActionRow::Buttons(vec![cancel_button])];
+    let components = vec![CreateComponent::ActionRow(CreateActionRow::Buttons(
+        Cow::from(vec![cancel_button]),
+    ))];
     let reply = CreateReply::new()
         .embed(embed.clone())
-        .components(components.clone());
+        .components(Cow::from(components));
 
     let reply_handler = ctx.send(reply.clone()).await?;
     let reply_handler_countdown = reply_handler.clone();
@@ -156,7 +167,8 @@ pub async fn nuke(
     let button_interaction = reply_handler
         .message()
         .await?
-        .await_component_interaction(ctx)
+        .id
+        .collect_component_interactions(ctx.serenity_context())
         .into_future();
     match select(pin!(countdown), button_interaction).await {
         Either::Left((countdown, _)) => {
@@ -195,7 +207,9 @@ pub async fn nuke(
     reply_handler.edit(ctx, reply).await?;
 
     for message in messages_to_delete {
-        message.delete(ctx.http()).await?;
+        message
+            .delete(ctx.http(), Some("Result from `/nuke`"))
+            .await?;
     }
 
     let reply = CreateReply::new()
@@ -251,7 +265,7 @@ enum YesNo {
 pub async fn mute(
     ctx: Context<'_>,
     #[description = "The user to mute."] mut member: Member,
-    #[description = "The reason to mute the user."] _reason: Option<String>,
+    #[description = "The reason to mute the user."] reason: Option<String>,
     #[description = "How long to mute the user for. Mutally exclusive to `until`."]
     mute_length: Option<MuteLength>,
     #[description = "Unix timestamp (in secs) for how long to keep user muted until. Mutally exclusive to `mute_length`."]
@@ -292,7 +306,7 @@ pub async fn mute(
         };
     if let Some(end_time) = end_time {
         member
-            .disable_communication_until_datetime(ctx.http(), end_time)
+            .disable_communication_until(ctx.http(), end_time)
             .await?;
         ctx.reply(format!(
             "{} was muted until {}.",
@@ -303,10 +317,12 @@ pub async fn mute(
     } else {
         let roles = guild.roles(ctx.http()).await?;
         let mute_role = roles
-            .values()
+            .iter()
             .find(|role| role.name == ROLE_MUTED)
             .ok_or(format!("Could not find `{}` role", ROLE_MUTED))?;
-        member.add_role(ctx.http(), mute_role.id).await?;
+        member
+            .add_role(ctx.http(), mute_role.id, reason.as_deref())
+            .await?;
         ctx.reply(format!("{} was muted indefinitely.", member.mention()))
             .await?;
     }
@@ -325,21 +341,17 @@ pub async fn lock(ctx: Context<'_>) -> Result<(), Error> {
         .reply(format!("{} Attempting to lock channel ...", EMOJI_LOADING))
         .await?;
 
-    let mut channel = ctx.guild_channel().await.unwrap();
+    let mut channel = ctx.channel().await.unwrap().guild().unwrap();
     let category = channel.parent_id;
     let is_priviledged_channel = match category {
         None => false,
         Some(category_id) => {
             let category = category_id
-                .to_channel(ctx.http())
-                .await
-                .map(|channel| channel.guild())
-                .unwrap();
-            category.is_some_and(|category| {
-                matches!(category.kind, ChannelType::Category)
-                    && [CATEGORY_BETA, CATEGORY_STAFF, CATEGORY_COMMUNITY]
-                        .contains(&category.name.as_str())
-            })
+                .to_guild_channel(ctx.http(), ctx.guild_id())
+                .await?;
+            matches!(category.base.kind, ChannelType::Category)
+                && [CATEGORY_BETA, CATEGORY_STAFF, CATEGORY_COMMUNITY]
+                    .contains(&category.base.name.as_str())
         }
     };
     if is_priviledged_channel {
@@ -354,27 +366,27 @@ pub async fn lock(ctx: Context<'_>) -> Result<(), Error> {
         return Ok(());
     }
 
-    let roles = channel.guild_id.roles(ctx.http()).await?;
+    let roles = channel.base.guild_id.roles(ctx.http()).await?;
     let everyone_role = roles
-        .values()
+        .iter()
         .find(|role| role.name == ROLE_EVERYONE)
         .ok_or(format!("Could not find `{}` role", ROLE_EVERYONE))?;
     let staff_role = roles
-        .values()
+        .iter()
         .find(|role| role.name == ROLE_STAFF)
         .ok_or(format!("Could not find `@{}` role", ROLE_STAFF))?;
     let vip_role = roles
-        .values()
+        .iter()
         .find(|role| role.name == ROLE_VIP)
         .ok_or(format!("Could not find `@{}` role", ROLE_VIP))?;
     let bot_role = roles
-        .values()
+        .iter()
         .find(|role| role.name == ROLE_BOTS)
         .ok_or(format!("Could not find `@{}` role", ROLE_BOTS))?;
     channel
         .edit(
             ctx.http(),
-            EditChannel::new().permissions([
+            EditChannel::new().permissions(vec![
                 PermissionOverwrite {
                     allow: Permissions::READ_MESSAGE_HISTORY,
                     deny: Permissions::ADD_REACTIONS | Permissions::SEND_MESSAGES,
@@ -429,29 +441,28 @@ pub async fn unlock(ctx: Context<'_>) -> Result<(), Error> {
         ))
         .await?;
 
-    let mut channel = ctx.guild_channel().await.unwrap();
+    let mut channel = ctx.channel().await.unwrap().guild().unwrap();
     let category = match channel.parent_id {
         None => None,
         Some(category_id) => {
             let category = category_id
-                .to_channel(ctx.http())
-                .await
-                .map(|channel| channel.guild())
-                .unwrap();
-            category.and_then(|category| match category.kind {
+                .to_guild_channel(ctx.http(), ctx.guild_id())
+                .await?;
+            match category.base.kind {
                 ChannelType::Category => Some(category),
                 _ => None,
-            })
+            }
         }
     };
-    let roles = channel.guild_id.roles(ctx.http()).await?;
+    let roles = channel.base.guild_id.roles(ctx.http()).await?;
     let everyone_role = roles
-        .values()
+        .iter()
         .find(|role| role.name == ROLE_EVERYONE)
         .ok_or(format!("Could not find `{}` role", ROLE_EVERYONE))?;
 
     if let Some(category) = category
-        && [CATEGORY_BETA, CATEGORY_STAFF, CATEGORY_COMMUNITY].contains(&category.name.as_str())
+        && [CATEGORY_BETA, CATEGORY_STAFF, CATEGORY_COMMUNITY]
+            .contains(&category.base.name.as_str())
     {
         reply_handler
             .edit(
@@ -466,7 +477,7 @@ pub async fn unlock(ctx: Context<'_>) -> Result<(), Error> {
     channel
         .edit(
             ctx.http(),
-            EditChannel::new().permissions([PermissionOverwrite {
+            EditChannel::new().permissions(vec![PermissionOverwrite {
                 allow: Permissions::empty(),
                 deny: Permissions::empty(),
                 kind: PermissionOverwriteType::Role(everyone_role.id),

@@ -11,8 +11,8 @@ dotenv = { workspace = true }
 indoc = "2.0.7"
 log = { workspace = true, features = ["max_level_debug", "release_max_level_info"] }
 num-bigint = "0.4.6"
-poise = { git = "https://github.com/Nydauron/poise.git", branch = "feat/burstable-cooldowns", version = "0.6.1" }
-poise_macros = { git = "https://github.com/Nydauron/poise.git", branch = "feat/burstable-cooldowns", version = "0.6.1" }
+poise = { git = "https://github.com/Nydauron/poise.git", branch = "pi-bot", version = "0.6.1" }
+poise_macros = { git = "https://github.com/Nydauron/poise.git", branch = "pi-bot", version = "0.6.1" }
 rand = "0.9.2"
 reqwest = { workspace = true }
 serde = { workspace = true, features = ["derive"] }

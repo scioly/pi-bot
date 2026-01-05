@@ -23,7 +23,7 @@ pub static EMOJI_LOADING: &str = "<a:loading:1409087568313712731>";
 
 pub async fn is_staff(ctx: Context<'_>) -> Result<bool, Error> {
     let guild_roles = if let Some(guild) = ctx.guild() {
-        let mut roles = guild.roles.values().cloned().collect::<Box<[_]>>();
+        let mut roles = guild.roles.iter().cloned().collect::<Box<[_]>>();
         roles.sort();
         roles
     } else {

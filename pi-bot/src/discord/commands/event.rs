@@ -117,6 +117,7 @@ pub async fn add(
 
     if should_enable_role {
         guild
+            .id
             .create_role(ctx.http(), EditRole::new().name(&event_name))
             .await?;
         reply_message.edit(ctx, CreateReply::default().content(format!("The event `{}` has been added to the database, and the event role was created.", event_name))).await?;
@@ -257,6 +258,7 @@ async fn enable_event_role(
         Ok(EnableRoleResponse::RoleAlreadyEnabled)
     } else {
         guild
+            .id
             .create_role(ctx.http(), EditRole::new().name(event_name))
             .await?;
         Ok(EnableRoleResponse::RoleCreated)
@@ -269,7 +271,10 @@ async fn disable_event_role(
     event_name: &str,
 ) -> Result<DisableRoleResponse, Error> {
     if let Some(role) = guild.role_by_name(event_name) {
-        guild.delete_role(ctx.http(), role.id).await?;
+        guild
+            .id
+            .delete_role(ctx.http(), role.id, Some("Event disabled via Pi-Bot"))
+            .await?;
         Ok(DisableRoleResponse::RoleRemoved)
     } else {
         Ok(DisableRoleResponse::RoleAlreadyDisabled)

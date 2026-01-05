@@ -196,7 +196,7 @@ pub async fn info(ctx: Context<'_>) -> Result<(), Error> {
     let animated_icon = server.icon.is_some_and(|hash| hash.is_animated());
     let iden = server.id;
     let banner = server.banner_url();
-    let desc = server.description.clone();
+    let desc = server.description.as_ref().map(|desc| desc.as_str());
     let mfa_level = server.mfa_level;
     let verification_level = server.verification_level;
     let content_filter = server.explicit_content_filter;
@@ -205,23 +205,22 @@ pub async fn info(ctx: Context<'_>) -> Result<(), Error> {
     let splash = server.splash_url();
     let premium_level = server.premium_tier;
     let premium_level_str = match premium_level {
-        PremiumTier::Tier0 => "Tier 0".into(),
-        PremiumTier::Tier1 => "Tier 1".into(),
-        PremiumTier::Tier2 => "Tier 2".into(),
-        PremiumTier::Tier3 => "Tier 3".into(),
-        PremiumTier::Unknown(level) => format!("Unknown Tier ({})", level),
-        _ => "Unknown".into(),
+        PremiumTier::Tier0 => "Tier 0",
+        PremiumTier::Tier1 => "Tier 1",
+        PremiumTier::Tier2 => "Tier 2",
+        PremiumTier::Tier3 => "Tier 3",
+        _ => "Unknown",
     };
     let boosts = server.premium_subscription_count;
     let channel_count = server.channels.len();
-    let channel_counts = server.channels(ctx.http()).await?.iter().fold(
+    let channel_counts = server.id.channels(ctx.http()).await?.iter().fold(
         HashMap::from([
             (ChannelType::Text, 0_u32),
             (ChannelType::Voice, 0_u32),
             (ChannelType::Category, 0_u32),
         ]),
-        |mut acc, (_, channel)| {
-            acc.entry(channel.kind).and_modify(|count| *count += 1);
+        |mut acc, channel| {
+            acc.entry(channel.base.kind).and_modify(|count| *count += 1);
             acc
         },
     );
@@ -230,7 +229,7 @@ pub async fn info(ctx: Context<'_>) -> Result<(), Error> {
     let category_count = channel_counts.get(&ChannelType::Category).unwrap();
     let system_channel = server
         .system_channel_id
-        .map(async |id| id.to_channel(ctx.http()).await);
+        .map(async |id| id.to_guild_channel(ctx.http(), Some(server.id)).await);
     let system_channel_mention = if let Some(future) = system_channel {
         let channel = future.await?;
         channel.mention().to_string()
@@ -239,7 +238,7 @@ pub async fn info(ctx: Context<'_>) -> Result<(), Error> {
     };
     let rules_channel = server
         .rules_channel_id
-        .map(async |id| id.to_channel(ctx.http()).await);
+        .map(async |id| id.to_guild_channel(ctx.http(), Some(server.id)).await);
     let rules_channel_mention = if let Some(future) = rules_channel {
         let channel = future.await?;
         channel.mention().to_string()
@@ -248,7 +247,7 @@ pub async fn info(ctx: Context<'_>) -> Result<(), Error> {
     };
     let public_updates_channel = server
         .public_updates_channel_id
-        .map(async |id| id.to_channel(ctx.http()).await);
+        .map(async |id| id.to_guild_channel(ctx.http(), Some(server.id)).await);
     let public_updates_channel_mention = if let Some(future) = public_updates_channel {
         let channel = future.await?;
         channel.mention().to_string()
@@ -280,7 +279,7 @@ pub async fn info(ctx: Context<'_>) -> Result<(), Error> {
     let boosters = server
         .members
         .iter()
-        .filter_map(|(_, member)| member.premium_since.map(|_| member.mention().to_string()))
+        .filter_map(|member| member.premium_since.map(|_| member.mention().to_string()))
         .collect::<Box<[_]>>()
         .join(", ");
 
@@ -302,7 +301,7 @@ pub async fn info(ctx: Context<'_>) -> Result<(), Error> {
         )
     });
     let member_percentage = if let Some(max_members) = max_members {
-        ((member_count as f64 / max_members as f64) * 100_000_f64).round() / 1_000_f64
+        ((member_count as f64 / max_members.get() as f64) * 100_000_f64).round() / 1_000_f64
     } else {
         0_f64
     };
@@ -343,17 +342,15 @@ pub async fn info(ctx: Context<'_>) -> Result<(), Error> {
             false,
         ),
     ];
-    if let Some(channel) = ctx.guild_channel().await
+    if let Some(channel) = ctx.channel().await.unwrap().guild()
         && let Some(parent_channel_id) = channel.parent_id
     {
         let parent_channel = parent_channel_id
-            .to_channel(ctx.http())
-            .await?
-            .guild()
-            .unwrap();
+            .to_guild_channel(ctx.http(), Some(server.id))
+            .await?;
         const CATEGORY_STAFF: &str = "staff";
-        if matches!(parent_channel.kind, ChannelType::Category)
-            && parent_channel.name() == CATEGORY_STAFF
+        if matches!(parent_channel.base.kind, ChannelType::Category)
+            && parent_channel.base.name == CATEGORY_STAFF
         {
             fields.append(&mut vec![
                 (
@@ -369,33 +366,28 @@ pub async fn info(ctx: Context<'_>) -> Result<(), Error> {
                             **Filesize Limit:** {} MB",
                         owner,
                         match mfa_level {
-                            MfaLevel::None => "None".into(),
-                            MfaLevel::Elevated => "Require 2FA".into(),
-                            MfaLevel::Unknown(level) => format!("Unknown ({})", level),
-                            _ => "Unknown".into(),
+                            MfaLevel::None => "None",
+                            MfaLevel::Elevated => "Require 2FA",
+                            _ => "Unknown",
                         },
                         match verification_level {
-                            VerificationLevel::None => "None".into(),
-                            VerificationLevel::Low => "Low".into(),
-                            VerificationLevel::Medium => "Medium".into(),
-                            VerificationLevel::High => "High".into(),
-                            VerificationLevel::Higher => "Higher".into(),
-                            VerificationLevel::Unknown(level) => format!("Unknown ({})", level),
-                            _ => "Unknown".into(),
+                            VerificationLevel::None => "None",
+                            VerificationLevel::Low => "Low",
+                            VerificationLevel::Medium => "Medium",
+                            VerificationLevel::High => "High",
+                            VerificationLevel::Higher => "Higher",
+                            _ => "Unknown",
                         },
                         match content_filter {
-                            ExplicitContentFilter::None => "None".into(),
-                            ExplicitContentFilter::WithoutRole => "Members without role".into(),
-                            ExplicitContentFilter::All => "All members".into(),
-                            ExplicitContentFilter::Unknown(level) => format!("Unknown ({})", level),
-                            _ => "Unknown".into(),
+                            ExplicitContentFilter::None => "None",
+                            ExplicitContentFilter::WithoutRole => "Members without role",
+                            ExplicitContentFilter::All => "All members",
+                            _ => "Unknown",
                         },
                         match default_notifs {
-                            DefaultMessageNotificationLevel::All => "All".into(),
-                            DefaultMessageNotificationLevel::Mentions => "Mentions only".into(),
-                            DefaultMessageNotificationLevel::Unknown(level) =>
-                                format!("Unknown ({})", level),
-                            _ => "Unknown".into(),
+                            DefaultMessageNotificationLevel::All => "All",
+                            DefaultMessageNotificationLevel::Mentions => "Mentions only",
+                            _ => "Unknown",
                         },
                         features,
                         bitrate_limit,
@@ -449,7 +441,7 @@ pub async fn info(ctx: Context<'_>) -> Result<(), Error> {
 
     let mut embed = CreateEmbed::default()
         .title(format!("Information for `{}`", name))
-        .description(format!("**Description:** {}", desc.unwrap_or("".into())))
+        .description(format!("**Description:** {}", desc.unwrap_or("")))
         .fields(fields);
     if let Some(icon) = icon {
         embed = embed.thumbnail(icon);

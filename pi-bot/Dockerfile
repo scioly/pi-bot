@@ -1,5 +1,5 @@
 # Run from root directory
-FROM rust:1.89-trixie AS build
+FROM rust:1.92-trixie AS build
 
 # Set working directory
 WORKDIR /usr/src/app
