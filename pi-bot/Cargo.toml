@@ -20,6 +20,9 @@ simple_logger = { workspace = true }
 sqlx = { workspace = true, features = ["chrono", "mysql", "runtime-tokio"] }
 tokio = { workspace = true, features = ["rt-multi-thread"] }
 
+[patch.crates-io]
+num-bigint-dig = "0.8.6"
+
 [dev-dependencies]
 test-case = { workspace = true }
 
