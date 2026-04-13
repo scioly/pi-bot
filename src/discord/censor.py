@@ -123,6 +123,7 @@ class Censor(commands.Cog):
         ) and (
             len(re.findall("discord.gg", content, re.I)) > 0
             or len(re.findall("discord.com/invite", content, re.I)) > 0
+            or len(re.findall("discordapp.com/invite", content, re.I)) > 0
         ):
             return True
         return False
