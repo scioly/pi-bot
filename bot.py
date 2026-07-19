@@ -40,7 +40,22 @@ if TYPE_CHECKING:
     from src.discord.logger import Logger
     from src.discord.spam import SpamManager
 
-intents = discord.Intents.all()
+intents = discord.Intents.default()
+# We use the guild members intent for keeping track of user join and leave events:
+# For example, we have the bot:
+# - log all member leave events
+# - save and restore the user's non-public roles on leave and rejoin
+intents.members = True
+# We have a few public features that require the message_content intent:
+# - Ping system (reads user messages and notifies users based on patterns users set beforehand)
+# - We log message edit and delete events to a channel
+# - We internally log message events to a file which are rotated out every 7 days
+# - For our syncing command
+# - For our legacy censor (scans words from our internal word and regex bank to
+#   blank out the pattern before resending the message). This system is now
+#   largely unused now with AutoMod censor.
+intents.message_content = True
+
 logger = logging.getLogger(__name__)
 
 BOT_PREFIX = "?" if env.dev_mode else "!"
