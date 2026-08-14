@@ -500,9 +500,11 @@ class MemberCommands(commands.Cog):
             "Rule #9: Do not try to circumvent built-in restrictions.",
             "Rule #10: No impersonating.",
             "Rule #11: Do not use alts.",
+            "Rule #12: Scioly.org Disclaimer",
             "Rule #13: Do not violate SOINC copyrights.",
             "Rule #14: No resource sharing in the server.",
             "Rule #15: No advertising.",
+            "Rule #16: Scioly.org is not an official source of tournament communication.",
             "Rule #17: Use good judgement.",
         ],
     ):

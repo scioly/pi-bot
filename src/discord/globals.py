@@ -105,6 +105,11 @@ RULES = [
         "personal account."
     ),
     (
+        "In accordance with the Scioly.org Disclaimer, Scioly.org is not a place
+        "to get the rules, official rules clarifications, or FAQs; rather"
+        "Scioly.org is a place to ask questions and share ideas."
+    ),
+    (
         "Do not violate Science Olympiad Inc. copyrights. In accordance with "
         "the Scioly.org Resource Policy, all sharing of tests on Scioly.org "
         "must occur in the designated Test Exchanges. Do not solicit test "
@@ -118,6 +123,12 @@ RULES = [
     ),
     (
         "Do not advertise or self-promote other sites, servers, or services with which you have an affiliation."
+    ),
+    (
+        "While Scioly.org is a valuable resource for tournament information,"
+        "students should never use them as an alternative to official platforms"
+        "for scoring inquiries and appeals. Tournament directors are discouraged" 
+        "from using Scioly.org as their primary means of communication."
     ),
     (
         "Use good judgment when deciding what content to leave in and take out."
