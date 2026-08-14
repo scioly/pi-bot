@@ -80,16 +80,20 @@ EMOJI_LOADING = "<a:loading:1409087568313712731>"
 RULES = [
     "Treat *all* users with respect.",
     "No profanity or inappropriate language, content, or links.",
-    (
-        "Treat delicate subjects delicately. When discussing religion, politics, "
-        "instruments, or other similar topics, please remain objective and avoid "
-        "voicing strong opinions."
-    ),
     "Do not spam or flood (an excessive number of messages sent within a short timespan).",
     "Avoid intentional repeating pinging of other users (saying another user`s name).",
     "Avoid excessive use of caps, which constitutes yelling and is disruptive.",
     "Never name-drop (using a real name without permission) or dox another user.",
     "No witch-hunting (requests of kicks or bans for other users).",
+    (
+        "Treat delicate subjects delicately. When discussing religion, politics, "
+        "instruments, or other similar topics, please remain objective and avoid "
+        "voicing strong opinions."
+    ),
+    (
+        "Do not try to circumvent built-in restrictions (e.g. language censors)" 
+        "or punishments (e.g. avoiding a mute by using a second account)."
+    ),
     (
         "While you are not required to use your Scioly.org username as your "
         "nickname for this Server, please avoid assuming the username of or "
@@ -106,7 +110,15 @@ RULES = [
         "must occur in the designated Test Exchanges. Do not solicit test "
         "trades on this Server.",
     ),
-    "Do not advertise other servers or paid services with which you have an affiliation.",
+    (
+        "In accordance with the Scioly.org Resource Policy, all sharing of" 
+        "resources on Scioly.org must occur in the designated Test Exchanges." 
+        "Do not solicit trades of private resources, including but not limited" 
+        "to tests, binders, and note sheets."
+    ),
+    (
+        "Do not advertise or self-promote other sites, servers, or services with which you have an affiliation."
+    ),
     (
         "Use good judgment when deciding what content to leave in and take out."
         " As a general rule of thumb: 'When in doubt, leave it out.'"
